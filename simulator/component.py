@@ -35,6 +35,9 @@ class Component(Draggable):
         # self.connections = []
         # self.rotated = False
 
+    def load_image(self, path: str):
+        self.image = pygame.transform.smoothscale(pygame.image.load(path), (self.w, self.h))
+
     def snap_to_grid(self, grid: Grid):
         self.pos = grid.snap(self.pos, self.dim)
 
@@ -52,7 +55,7 @@ class Component(Draggable):
 class GateValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
-        self.image = pygame.transform.scale(pygame.image.load("images/gatevalve.png"), (self.w, self.h))
+        self.load_image("images/gatevalve.png")
         self.rect = pygame.Rect(*pos, self.w, self.h)
 
         self.tile_size = tile_size
@@ -61,7 +64,7 @@ class GateValve(Component):
 class GlobeValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
-        self.image = pygame.transform.scale(pygame.image.load("images/globevalve.png"), (self.w, self.h))
+        self.load_image("images/globevalve.png")
         self.rect = pygame.Rect(*pos, self.w, self.h)
 
         self.tile_size = tile_size
@@ -70,7 +73,7 @@ class GlobeValve(Component):
 class BallValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
-        self.image = pygame.transform.scale(pygame.image.load("images/ballvalve.png"), (self.w, self.h))
+        self.load_image("images/ballvalve.png")
         self.rect = pygame.Rect(*pos, self.w, self.h)
 
         self.tile_size = tile_size
@@ -79,7 +82,7 @@ class BallValve(Component):
 class Diaphragm(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
-        self.image = pygame.transform.scale(pygame.image.load("images/diaphragm.png"), (self.w, self.h))
+        self.load_image("images/diaphragm.png")
         self.rect = pygame.Rect(*pos, self.w, self.h)
 
         self.tile_size = tile_size
@@ -88,7 +91,7 @@ class Diaphragm(Component):
 class ThreeWayValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
-        self.image = pygame.transform.scale(pygame.image.load("images/threewayvalve.png"), (self.w, self.h))
+        self.load_image("images/threewayvalve.png")
         self.rect = pygame.Rect(*pos, self.w, self.h)
 
         self.tile_size = tile_size
@@ -97,7 +100,7 @@ class ThreeWayValve(Component):
 class Pump(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
-        self.image = pygame.transform.scale(pygame.image.load("images/pump.png"), (self.w, self.h))
+        self.load_image("images/pump.png")
         self.rect = pygame.Rect(*pos, self.w, self.h)
 
         self.tile_size = tile_size
