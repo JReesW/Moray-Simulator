@@ -30,16 +30,37 @@ class Component(Draggable):
         self.dim = dimensions
         self.w, self.h = tile_size * self.dim[0], tile_size * self.dim[1]
 
-        # self.shadow = None
-
         # self.connections = []
-        # self.rotated = False
 
     def load_image(self, path: str):
+        """
+        Load the component's image from its given path
+        """
         self.image = pygame.transform.smoothscale(pygame.image.load(path), (self.w, self.h))
 
     def snap_to_grid(self, grid: Grid):
+        """
+        Snap this component to a snapping point on the grid
+        """
         self.pos = grid.snap(self.pos, self.dim)
+
+    def rotate(self, clockwise=True):
+        """
+        Rotate the component by a 90-degree rotation
+        """
+        self.image = pygame.transform.rotate(self.image, -90 if clockwise else 90)
+        self.shadow.image = pygame.transform.rotate(self.shadow.image, -90 if clockwise else 90)
+
+    def handle_events(self, events, **kwargs):
+        super().handle_events(events, **kwargs)
+
+        for event in events:
+            if event.type == pygame.KEYDOWN:
+                if self.held and event.key == pygame.K_r:
+                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        self.rotate(False)
+                    else:
+                        self.rotate()
 
     def update(self, camera, *args, **kwargs):
         Draggable.update(self, camera, *args, **kwargs)
@@ -48,6 +69,9 @@ class Component(Draggable):
             self.snap_to_grid(kwargs["grid"])
 
     def kill(self):
+        """
+        Kill the component and its shadow
+        """
         Sprite.kill(self)
         Sprite.kill(self.shadow)
 
