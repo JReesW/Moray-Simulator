@@ -29,6 +29,8 @@ class Component(Draggable):
 
         self.dim = dimensions
         self.w, self.h = tile_size * self.dim[0], tile_size * self.dim[1]
+        self.tile_size = tile_size
+        self.rect = Rect(*pos, self.w, self.h)
 
         # self.connections = []
 
@@ -80,51 +82,33 @@ class GateValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
         self.load_image("images/gatevalve.png")
-        self.rect = pygame.Rect(*pos, self.w, self.h)
-
-        self.tile_size = tile_size
 
 
 class GlobeValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
         self.load_image("images/globevalve.png")
-        self.rect = pygame.Rect(*pos, self.w, self.h)
-
-        self.tile_size = tile_size
 
 
 class BallValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
         self.load_image("images/ballvalve.png")
-        self.rect = pygame.Rect(*pos, self.w, self.h)
-
-        self.tile_size = tile_size
 
 
 class Diaphragm(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
         self.load_image("images/diaphragm.png")
-        self.rect = pygame.Rect(*pos, self.w, self.h)
-
-        self.tile_size = tile_size
 
 
 class ThreeWayValve(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
         self.load_image("images/threewayvalve.png")
-        self.rect = pygame.Rect(*pos, self.w, self.h)
-
-        self.tile_size = tile_size
 
 
 class Pump(Component):
     def __init__(self, tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, (3, 3), tile_size, pos=pos)
         self.load_image("images/pump.png")
-        self.rect = pygame.Rect(*pos, self.w, self.h)
-
-        self.tile_size = tile_size
