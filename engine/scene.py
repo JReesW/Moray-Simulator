@@ -65,10 +65,9 @@ class Camera:
 
     def translate(self, pos: (int, int)) -> (int, int):
         """
-        Translate a given position if the camera has moved.
-        Return the newly translated position.
-        :param pos: A position
-        :return: A translated position
+        Translate a given world position to a screen position
+        :param pos: A world position
+        :return: A screen position
         """
         x, y = pos
         newpos = (x - self.left), (y - self.top)

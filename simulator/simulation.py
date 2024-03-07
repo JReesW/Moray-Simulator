@@ -8,20 +8,22 @@ from engine.scene import Scene, Camera
 from engine.grid import Grid
 
 from simulator.panel import Panel
+from simulator.pipe import PipeLayer, Pipe
 
 
 class SimulationScene(Scene):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
+        # The background grid, for lines and for snapping things
+        self.grid = Grid(tile_size=20)
+
         # All the things in the scene
         self.components = pygame.sprite.Group()
+        self.pipelayer = PipeLayer(self)
         self.pipes = pygame.sprite.Group()
         self.shadows = pygame.sprite.Group()
         self.floating_components = pygame.sprite.Group()
-
-        # The background grid, for lines and for snapping things
-        self.grid = Grid(tile_size=20)
 
         # The control panel on the left side
         w, h = pygame.display.get_surface().get_size()
@@ -37,16 +39,28 @@ class SimulationScene(Scene):
         mouse = pygame.mouse.get_pos()
 
         try:
+            # If the mouse is on the panel, handle events there
             if self.panel.rect.collidepoint(*mouse):
                 self.panel.handle_events(events)
-            else:
-                for thing in self.components:
-                    thing.handle_events(events, groups=(self.floating_components, self.components), panel=self.panel)
-            for thing in self.floating_components:
-                thing.handle_events(events, groups=(self.floating_components, self.components), panel=self.panel)
+            elif self.panel.mode == "cursor":
+                # Otherwise handle components on the grid
+                for component in self.components:
+                    component.handle_events(events, self.panel)
+
+                for pipe in self.pipes:
+                    pipe.handle_events(events, self.panel)
+            elif self.panel.mode == "pipe":
+                self.pipelayer.handle_events(events, self.camera)
+
+            # Always handle floating components
+            for component in self.floating_components:
+                component.handle_events(events, self.panel)
+
         except things.IgnoreOtherThings:
+            # When a thing has reacted to an input event, we stop other things from handling events
             pass
 
+        # Move the camera with WASD
         if pygame.key.get_pressed()[pygame.K_w]:
             self.camera.move(0, -6)
         if pygame.key.get_pressed()[pygame.K_a]:
@@ -56,6 +70,7 @@ class SimulationScene(Scene):
         if pygame.key.get_pressed()[pygame.K_d]:
             self.camera.move(6, 0)
 
+        # Quit the game when pressing Ctrl + Q
         for event in events:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q and (pygame.key.get_mods() & pygame.KMOD_CTRL):
@@ -63,10 +78,13 @@ class SimulationScene(Scene):
                     sys.exit()
 
     def update(self):
+        # Update the panel
         self.panel.update()
 
+        # Update the sprite groups
         self.floating_components.update(self.camera)
-        self.components.update(self.camera, grid=self.grid)
+        self.pipes.update(self.camera)
+        self.components.update(self.camera, self.grid)
         self.shadows.update(self.camera)
 
     def render(self, surface: pygame.Surface, fonts: {str: pygame.freetype.SysFont}):
@@ -76,6 +94,7 @@ class SimulationScene(Scene):
 
         self.shadows.draw(surface)
         self.components.draw(surface)
+        self.pipes.draw(surface)
 
         self.panel.render(surface, fonts)
 
