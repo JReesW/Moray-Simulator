@@ -120,11 +120,14 @@ class Shadow(Sprite):
 
         self.reload()
 
-    def reload(self, rect=None):
+    def reload(self, image=None, rect=None):
         """
         Generate the shadow's image
         """
-        self.image = self.thing.image.copy()
+        if image is None:
+            self.image = self.thing.image.copy()
+        else:
+            self.image = image.copy()
         self.image.fill((0, 0, 0, 78), None, pygame.BLEND_RGBA_MULT)
 
         if rect is None:

@@ -8,7 +8,7 @@ from engine.scene import Scene, Camera
 from engine.grid import Grid
 
 from simulator.panel import Panel
-from simulator.pipe import PipeLayer, Pipe
+from simulator.pipe import PipeLayer
 
 
 class SimulationScene(Scene):
@@ -51,6 +51,10 @@ class SimulationScene(Scene):
                     pipe.handle_events(events, self.panel)
             elif self.panel.mode == "pipe":
                 self.pipelayer.handle_events(events, self.camera)
+            # TODO: add component/pipe deleter mode
+            # elif self.panel.mode == "delete":
+            #     for component in self.components:
+            #         if component.rect.collidepoint(*mouse):
 
             # Always handle floating components
             for component in self.floating_components:
@@ -82,9 +86,10 @@ class SimulationScene(Scene):
         self.panel.update()
 
         # Update the sprite groups
-        self.floating_components.update(self.camera)
+        show_connectors = len(self.floating_components) > 0 or self.pipelayer.held is not None
+        self.floating_components.update(self.camera, show_connectors=show_connectors)
         self.pipes.update(self.camera)
-        self.components.update(self.camera, self.grid)
+        self.components.update(self.camera, self.grid, show_connectors=show_connectors)
         self.shadows.update(self.camera)
 
     def render(self, surface: pygame.Surface, fonts: {str: pygame.freetype.SysFont}):

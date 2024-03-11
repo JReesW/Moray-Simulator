@@ -103,7 +103,7 @@ class Pipe(Draggable):
         else:  # Otherwise a horizontal line
             pygame.draw.line(self.image, colors.black, (t // 2, t // 2), (w - t // 2, t // 2), 3)
 
-        self.shadow.reload(rect)
+        self.shadow.reload(rect=rect)
 
     def handle_events(self, events, panel=None, **kwargs):
         mouse = pygame.mouse.get_pos()
