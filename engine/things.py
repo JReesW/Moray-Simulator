@@ -25,6 +25,7 @@ class Thing(Sprite):
 
         self.rect = rect if rect is not None else Rect(50, 50, 10, 10)
         self.pos = pos
+        self.prev_pos = None
 
         self.shadow = None
 
@@ -78,6 +79,7 @@ class Draggable(Thing):
             if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(*mouse):
                 # Set __held to true if the mouse is clicking while on top of the thing
                 self.held = True
+                self.prev_pos = self.pos
                 Sprite.add(self, self.float_group)
                 Sprite.remove(self, self.group)
                 raise IgnoreOtherThings

@@ -60,8 +60,8 @@ class SimulationScene(Scene):
             for component in self.floating_components:
                 component.handle_events(events, self.panel)
 
+        # When a thing has reacted to an input event, we stop other things from handling events
         except things.IgnoreOtherThings:
-            # When a thing has reacted to an input event, we stop other things from handling events
             pass
 
         # Move the camera with WASD
@@ -89,7 +89,7 @@ class SimulationScene(Scene):
         show_connectors = len(self.floating_components) > 0 or self.pipelayer.held is not None
         self.floating_components.update(self.camera, show_connectors=show_connectors)
         self.pipes.update(self.camera)
-        self.components.update(self.camera, self.grid, show_connectors=show_connectors)
+        self.components.update(self.camera, show_connectors=show_connectors)
         self.shadows.update(self.camera)
 
     def render(self, surface: pygame.Surface, fonts: {str: pygame.freetype.SysFont}):

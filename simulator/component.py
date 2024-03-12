@@ -36,6 +36,10 @@ class Component(Draggable, Connectable):
         self.tile_size = tile_size
         self.rect = Rect(*pos, self.w, self.h)
 
+        # TODO: perhaps remove scene from Thing, as this might be the only need for it atm
+        self.scene = scene
+        self.grid = scene.grid
+
     def load_image(self, path: str):
         """
         Load the component's image from its given path
@@ -43,11 +47,31 @@ class Component(Draggable, Connectable):
         self.bg_image = pygame.transform.smoothscale(pygame.image.load(path).convert_alpha(), (self.w, self.h))
         self.image = self.bg_image.copy()
 
-    def snap_to_grid(self, grid: Grid):
+    def drop(self):
         """
-        Snap this component to a snapping point on the grid
+        Handle what happens when the component is dropped
         """
-        self.pos = grid.snap(self.pos, self.dim)
+        colliding = any([self.grid_overlap(comp) for comp in self.scene.components if self is not comp])
+
+        if not colliding:
+            # Snap the component to the grid
+            self.pos = self.grid.snap(self.pos, self.dim)
+        else:
+            # Snap the component back to the last valid spot, or kill it if there is none
+            if self.prev_pos is None:
+                self.kill()
+            else:
+                self.pos = self.prev_pos
+
+    def grid_overlap(self, other: "Component"):
+        """
+        Return whether this component overlaps another on the grid
+        """
+        rect = Rect(0, 0, *self.dim)
+        rect.center = self.grid.tile_coord(self.pos)
+        other_rect = Rect(0, 0, *other.dim)
+        other_rect.center = self.grid.tile_coord(other.pos)
+        return rect.colliderect(other_rect)
 
     def rotate(self, clockwise=True):
         """
@@ -81,6 +105,9 @@ class Component(Draggable, Connectable):
             if event.type == pygame.MOUSEBUTTONUP and panel is not None:
                 if panel.rect.collidepoint(*mouse):
                     self.kill()
+                else:
+                    self.drop()
+
             elif event.type == pygame.KEYDOWN:
                 if self.held and event.key == pygame.K_r:
                     if pygame.key.get_mods() & pygame.KMOD_SHIFT:
@@ -88,19 +115,24 @@ class Component(Draggable, Connectable):
                     else:
                         self.rotate()
 
-    def update(self, camera, grid=None, *args, **kwargs):
+    def update(self, camera, *args, **kwargs):
         Draggable.update(self, camera, *args, **kwargs)
 
         self.image = self.bg_image.copy()
+
+        # Draw red if a dragging component is overlapping this component
+        if any([self.grid_overlap(comp) for comp in self.scene.floating_components if self is not comp]):
+            red = Surface(self.rect.size, pygame.SRCALPHA)
+            red.fill((*colors.red, 100))
+            self.image.blit(red, (0, 0))
+
+        # Draw connectors
         if "show_connectors" in kwargs and kwargs["show_connectors"]:
             conn_image = Surface(self.rect.size, pygame.SRCALPHA)
             for coord, connected in self.connector_coords():
-                color = colors.green if connected else colors.orange
-                pygame.draw.circle(conn_image, color, coord, 7)
+                color = colors.green if connected else colors.dark_orange
+                pygame.draw.circle(conn_image, color, coord, 7, 3)
             self.image.blit(conn_image, (0, 0))
-
-        if grid is not None:
-            self.snap_to_grid(grid)
 
 
 class GateValve(Component):
