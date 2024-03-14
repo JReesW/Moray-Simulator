@@ -1,5 +1,5 @@
 import pygame.mouse
-from pygame.sprite import Sprite, Group
+from pygame.sprite import Sprite
 from pygame import Surface, Rect
 import pygame
 
@@ -11,6 +11,20 @@ class IgnoreOtherThings(Exception):
     """
     For stopping other things from handling events
     """
+
+
+class Group(pygame.sprite.Group):
+    """
+    A pygame sprite group with some extra functions
+    """
+
+    def __init__(self):
+        pygame.sprite.Group.__init__(self)
+
+    def early_update(self, *args, **kwargs):
+        for sprite in self.sprites():
+            if isinstance(sprite, Thing):
+                sprite.early_update(*args, **kwargs)
 
 
 class Thing(Sprite):
@@ -38,6 +52,12 @@ class Thing(Sprite):
     def handle_events(self, events, **kwargs):
         """
         Handle user input
+        """
+        pass
+
+    def early_update(self, *args, **kwargs):
+        """
+        Update the image and the rect (and other properties if needed) earlier than the regular update
         """
         pass
 

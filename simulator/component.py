@@ -2,7 +2,7 @@ import pygame.image
 from pygame import Surface, Rect
 
 import simulator
-from simulator import Connectable
+from simulator import Connectable, Pipe
 from engine.things import Draggable
 from engine.grid import Grid
 from engine import colors
@@ -40,6 +40,8 @@ class Component(Draggable, Connectable):
         self.scene = scene
         self.grid = scene.grid
 
+        self.possible_connections = ""
+
     def load_image(self, path: str):
         """
         Load the component's image from its given path
@@ -60,8 +62,14 @@ class Component(Draggable, Connectable):
             # Snap the component back to the last valid spot, or kill it if there is none
             if self.prev_pos is None:
                 self.kill()
+                return
             else:
                 self.pos = self.prev_pos
+
+        for comp in self.scene.components:
+            if comp is not self and (side := self.get_touching_side(comp)):
+                if side in self.connections and self.opposites[side] in comp.connections:
+                    self.connect(comp, side)
 
     def grid_overlap(self, other: "Component"):
         """
@@ -72,6 +80,28 @@ class Component(Draggable, Connectable):
         other_rect = Rect(0, 0, *other.dim)
         other_rect.center = self.grid.tile_coord(other.pos)
         return rect.colliderect(other_rect)
+
+    def get_touching_side(self, other: "Component") -> str:
+        """
+        Checks whether two components are touching based on their grid coordinates.
+        Returns the touching side, or None if they don't connect
+        """
+        ax, ay = self.grid.tile_coord(self.pos)
+        bx, by = self.grid.tile_coord(other.pos)
+        if ax == bx:
+            if abs(d := ay - by) - 1 == (self.dim[1] // 2) + (other.dim[1] // 2):
+                return "S" if d < 0 else "N"
+        elif ay == by:
+            if abs(d := ax - bx) - 1 == (self.dim[0] // 2) + (other.dim[0] // 2):
+                return "E" if d < 0 else "W"
+
+    def check_potential_connection(self, other: "Component", side: str):
+        """
+        Check the potential connection for this component and the other given component on a given connection side
+        """
+        if side in self.connections and self.opposites[side] in other.connections:
+            self.possible_connections += side
+            other.possible_connections += self.opposites[side]
 
     def rotate(self, clockwise=True):
         """
@@ -85,16 +115,16 @@ class Component(Draggable, Connectable):
         """
         Get screencoords of the component's connectors, alongside bools whether they are connected or not
         """
-        res = []
+        res = {}
         cx, cy = self.w / 2, self.h / 2
         if "N" in self.connections:
-            res.append(((cx, 0), self.connections["N"] is not None))
+            res["N"] = ((cx, 0), self.connections["N"] is not None)
         if "E" in self.connections:
-            res.append(((self.w, cy), self.connections["E"] is not None))
+            res["E"] = ((self.w, cy), self.connections["E"] is not None)
         if "S" in self.connections:
-            res.append(((cx, self.h), self.connections["S"] is not None))
+            res["S"] = ((cx, self.h), self.connections["S"] is not None)
         if "W" in self.connections:
-            res.append(((0, cy), self.connections["W"] is not None))
+            res["W"] = ((0, cy), self.connections["W"] is not None)
         return res
 
     def handle_events(self, events, panel=None, **kwargs):
@@ -115,26 +145,38 @@ class Component(Draggable, Connectable):
                     else:
                         self.rotate()
 
+    def early_update(self, *args, **kwargs):
+        if self.scene.components.has(self):
+            for comp in self.scene.floating_components:
+                if touching := self.get_touching_side(comp):
+                    self.check_potential_connection(comp, touching)
+
     def update(self, camera, *args, **kwargs):
         Draggable.update(self, camera, *args, **kwargs)
 
         self.image = self.bg_image.copy()
 
-        # Draw red if a dragging component is overlapping this component
-        if any([self.grid_overlap(comp) for comp in self.scene.floating_components if self is not comp]):
-            red = Surface(self.rect.size, pygame.SRCALPHA)
-            red.fill((*colors.red, 100))
-            self.image.blit(red, (0, 0))
+        if self.scene.components.has(self):
+            # Draw red if a dragging component is overlapping this component
+            if any([self.grid_overlap(comp) for comp in self.scene.floating_components if not isinstance(comp, Pipe)]):
+                red = Surface(self.rect.size, pygame.SRCALPHA)
+                red.fill((*colors.red, 75))
+                self.image.blit(red, (0, 0))
+        elif self.scene.floating_components.has(self):
+            self.disconnect()
 
         # Draw connectors
         if "show_connectors" in kwargs and kwargs["show_connectors"]:
             conn_image = Surface(self.rect.size, pygame.SRCALPHA)
-            for coord, connected in self.connector_coords():
-                color = colors.green if connected else colors.dark_orange
+            for k, (coord, connected) in self.connector_coords().items():
+                color = colors.lime if connected or k in self.possible_connections else colors.dark_orange
                 pygame.draw.circle(conn_image, color, coord, 7, 3)
             self.image.blit(conn_image, (0, 0))
 
+        self.possible_connections = ""
 
+
+# TODO: Move these to their own files
 class GateValve(Component):
     def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
         Component.__init__(self, scene, (3, 3), tile_size, pos=pos)

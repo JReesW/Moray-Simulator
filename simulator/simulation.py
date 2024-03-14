@@ -4,6 +4,7 @@ import pygame
 import pygame.freetype
 
 from engine import colors, things
+from engine.things import Group
 from engine.scene import Scene, Camera
 from engine.grid import Grid
 
@@ -19,11 +20,11 @@ class SimulationScene(Scene):
         self.grid = Grid(tile_size=20)
 
         # All the things in the scene
-        self.components = pygame.sprite.Group()
+        self.components = Group()
         self.pipelayer = PipeLayer(self)
-        self.pipes = pygame.sprite.Group()
-        self.shadows = pygame.sprite.Group()
-        self.floating_components = pygame.sprite.Group()
+        self.pipes = Group()
+        self.shadows = Group()
+        self.floating_components = Group()
 
         # The control panel on the left side
         w, h = pygame.display.get_surface().get_size()
@@ -84,6 +85,8 @@ class SimulationScene(Scene):
     def update(self):
         # Update the panel
         self.panel.update()
+
+        self.components.early_update()
 
         # Update the sprite groups
         show_connectors = len(self.floating_components) > 0 or self.pipelayer.held is not None

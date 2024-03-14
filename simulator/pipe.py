@@ -33,7 +33,6 @@ class PipeLayer:
             elif self.held is not None and event.type == pygame.MOUSEBUTTONUP:
                 self.held = None
 
-        # TODO: figure out why the shadow is jank during creation
         if self.held is not None:
             gx, gy = self.scene.grid.tile_coord(camera.untranslate(mouse))
 
