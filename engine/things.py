@@ -13,6 +13,7 @@ class IgnoreOtherThings(Exception):
     """
 
 
+# TODO: maybe rethink this concept
 class Group(pygame.sprite.Group):
     """
     A pygame sprite group with some extra functions
@@ -39,7 +40,6 @@ class Thing(Sprite):
 
         self.rect = rect if rect is not None else Rect(50, 50, 10, 10)
         self.pos = pos
-        self.prev_pos = None
 
         self.shadow = None
 
@@ -89,6 +89,8 @@ class Draggable(Thing):
         # Whether the mouse is dragging the thing
         self.held = True
 
+        self.prev_pos = None
+
         self.group = group if group is not None else []
         self.float_group = float_group if float_group is not None else []
 
@@ -102,12 +104,14 @@ class Draggable(Thing):
                 self.prev_pos = self.pos
                 Sprite.add(self, self.float_group)
                 Sprite.remove(self, self.group)
+                self.on_pickup()
                 raise IgnoreOtherThings
             elif self.held and event.type == pygame.MOUSEBUTTONUP:
                 # Revert __held back to false if it was true and the mouse has been released
                 self.held = False
                 Sprite.add(self, self.group)
                 Sprite.remove(self, self.float_group)
+                self.on_drop()
 
     def update(self, camera, *args, **kwargs):
         # Update mouse pos if the thing is being dragged
@@ -124,6 +128,18 @@ class Draggable(Thing):
     def kill(self):
         Thing.kill(self)
         self.held = False
+
+    def on_pickup(self):
+        """
+        Triggers when this thing is picked up
+        """
+        pass
+
+    def on_drop(self):
+        """
+        Triggers when this thing is dropped
+        """
+        pass
 
 
 class Shadow(Sprite):
@@ -156,4 +172,4 @@ class Shadow(Sprite):
             self.rect = self.thing.rect.copy()
             self.rect.center = (self.thing.rect.centerx + 10, self.thing.rect.centery + 10)
         else:
-            self.rect = rect
+            self.rect = rect.copy()

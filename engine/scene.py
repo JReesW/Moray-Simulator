@@ -89,6 +89,9 @@ class Camera:
         """
         return self.rect.colliderect(rect)
 
+    def __str__(self):
+        return f"Camera<{self.pos} | {self.screen_size[0]}x{self.screen_size[1]}>"
+
 
 class Scene:
     def __init__(self,

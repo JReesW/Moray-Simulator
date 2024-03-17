@@ -14,12 +14,17 @@ class Grid:
         x, y = coord
         return x // self.tile_size, y // self.tile_size
 
-    def world_coord(self, coord: (int, int)) -> (int, int):
+    def world_coord(self, coord: (int, int), corner: str = "topleft") -> (int, int):
         """
-        Return the world coord of a given tile coord's topleft corner
+        Return the world coord of a given tile coord in a given corner
         """
         x, y = coord
-        return x * self.tile_size, y * self.tile_size
+        nx, ny = x * self.tile_size, y * self.tile_size
+        if "right" in corner:
+            nx += self.tile_size
+        if "bottom" in corner:
+            ny += self.tile_size
+        return nx, ny
 
     def snap(self, coord: (int, int), dim: (int, int)) -> (int, int):
         """

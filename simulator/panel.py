@@ -86,6 +86,7 @@ class Panel:
                         if self.component_rects[name].collidepoint(*mouse):
                             self.scene.add_component(self.component_types[name](self.scene, self.scene.grid.tile_size))
                             self.mode = "cursor"
+                            self.scene.audio.play_sound("pickup")
 
     def update(self):
         pass

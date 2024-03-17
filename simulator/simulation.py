@@ -3,13 +3,13 @@ import sys
 import pygame
 import pygame.freetype
 
-from engine import colors, things
+from engine import audio, colors, things
 from engine.things import Group
 from engine.scene import Scene, Camera
 from engine.grid import Grid
 
 from simulator.panel import Panel
-from simulator.pipe import PipeLayer
+from simulator.pipe import PipeLayer, Pipe
 
 
 class SimulationScene(Scene):
@@ -35,6 +35,10 @@ class SimulationScene(Scene):
             pos=(0, 0),
             screen_size=(w, h)
         )
+        self.audio = audio.Audio()
+        self.audio.add_sound("pickup", "sounds/202313__7778__click-2.mp3")
+        self.audio.add_sound("drop", "sounds/202314__7778__click-1.mp3")
+        self.audio.add_sound("connect", "sounds/202312__7778__dbl-click.mp3")
 
     def handle_events(self, events):
         mouse = pygame.mouse.get_pos()
@@ -46,10 +50,10 @@ class SimulationScene(Scene):
             elif self.panel.mode == "cursor":
                 # Otherwise handle components on the grid
                 for component in self.components:
-                    component.handle_events(events, self.panel)
+                    component.handle_events(events)
 
                 for pipe in self.pipes:
-                    pipe.handle_events(events, self.panel)
+                    pipe.handle_events(events)
             elif self.panel.mode == "pipe":
                 self.pipelayer.handle_events(events, self.camera)
             # TODO: add component/pipe deleter mode
@@ -59,7 +63,7 @@ class SimulationScene(Scene):
 
             # Always handle floating components
             for component in self.floating_components:
-                component.handle_events(events, self.panel)
+                component.handle_events(events)
 
         # When a thing has reacted to an input event, we stop other things from handling events
         except things.IgnoreOtherThings:
@@ -81,6 +85,12 @@ class SimulationScene(Scene):
                 if event.key == pygame.K_q and (pygame.key.get_mods() & pygame.KMOD_CTRL):
                     pygame.quit()
                     sys.exit()
+                elif event.key == pygame.K_p:
+                    for pipe in self.pipes:
+                        print(f"pos: {pipe.pos}")
+                        print(f"rect: {pipe.rect}")
+                        print(f"begin: {pipe.begin}")
+                        print(f"end: {pipe.end}")
 
     def update(self):
         # Update the panel
@@ -89,11 +99,13 @@ class SimulationScene(Scene):
         self.components.early_update()
 
         # Update the sprite groups
-        show_connectors = len(self.floating_components) > 0 or self.pipelayer.held is not None
+        show_connectors = len(self.floating_components) > 0 or self.panel.mode == "pipe"
         self.floating_components.update(self.camera, show_connectors=show_connectors)
         self.pipes.update(self.camera)
         self.components.update(self.camera, show_connectors=show_connectors)
         self.shadows.update(self.camera)
+
+        self.audio.execute()
 
     def render(self, surface: pygame.Surface, fonts: {str: pygame.freetype.SysFont}):
         surface.fill(colors.gainsboro)

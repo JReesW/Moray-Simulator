@@ -49,28 +49,6 @@ class Component(Draggable, Connectable):
         self.bg_image = pygame.transform.smoothscale(pygame.image.load(path).convert_alpha(), (self.w, self.h))
         self.image = self.bg_image.copy()
 
-    def drop(self):
-        """
-        Handle what happens when the component is dropped
-        """
-        colliding = any([self.grid_overlap(comp) for comp in self.scene.components if self is not comp])
-
-        if not colliding:
-            # Snap the component to the grid
-            self.pos = self.grid.snap(self.pos, self.dim)
-        else:
-            # Snap the component back to the last valid spot, or kill it if there is none
-            if self.prev_pos is None:
-                self.kill()
-                return
-            else:
-                self.pos = self.prev_pos
-
-        for comp in self.scene.components:
-            if comp is not self and (side := self.get_touching_side(comp)):
-                if side in self.connections and self.opposites[side] in comp.connections:
-                    self.connect(comp, side)
-
     def grid_overlap(self, other: "Component"):
         """
         Return whether this component overlaps another on the grid
@@ -127,18 +105,44 @@ class Component(Draggable, Connectable):
             res["W"] = ((0, cy), self.connections["W"] is not None)
         return res
 
-    def handle_events(self, events, panel=None, **kwargs):
+    def on_drop(self):
+        if self.scene.panel.rect.collidepoint(*self.pos):
+            self.kill()
+            # TODO: add trash sound effect
+        else:
+            colliding = any([self.grid_overlap(comp) for comp in self.scene.components if self is not comp])
+
+            if not colliding:
+                # Snap the component to the grid
+                self.pos = self.grid.snap(self.pos, self.dim)
+            else:
+                # Snap the component back to the last valid spot, or kill it if there is none
+                if self.prev_pos is None:
+                    self.kill()
+                    return
+                else:
+                    self.pos = self.prev_pos
+
+            connection_made = False
+            for comp in self.scene.components:
+                if comp is not self and (side := self.get_touching_side(comp)):
+                    if side in self.connections and self.opposites[side] in comp.connections:
+                        self.connect(comp, side)
+                        connection_made = True
+
+            if connection_made:
+                self.scene.audio.play_sound("connect")
+            else:
+                self.scene.audio.play_sound("drop")
+
+    def on_pickup(self):
+        self.scene.audio.play_sound("pickup")
+
+    def handle_events(self, events, **kwargs):
         Draggable.handle_events(self, events, **kwargs)
-        mouse = pygame.mouse.get_pos()
 
         for event in events:
-            if event.type == pygame.MOUSEBUTTONUP and panel is not None:
-                if panel.rect.collidepoint(*mouse):
-                    self.kill()
-                else:
-                    self.drop()
-
-            elif event.type == pygame.KEYDOWN:
+            if event.type == pygame.KEYDOWN:
                 if self.held and event.key == pygame.K_r:
                     if pygame.key.get_mods() & pygame.KMOD_SHIFT:
                         self.rotate(False)
@@ -148,7 +152,7 @@ class Component(Draggable, Connectable):
     def early_update(self, *args, **kwargs):
         if self.scene.components.has(self):
             for comp in self.scene.floating_components:
-                if touching := self.get_touching_side(comp):
+                if not isinstance(comp, Pipe) and (touching := self.get_touching_side(comp)):
                     self.check_potential_connection(comp, touching)
 
     def update(self, camera, *args, **kwargs):
