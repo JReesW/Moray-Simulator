@@ -1,7 +1,7 @@
 from pygame import mixer
 
 
-class Audio:
+class AudioManager:
     """
     Handles playing sound effects for a scene
     """

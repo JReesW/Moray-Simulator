@@ -89,7 +89,7 @@ class Component(Draggable, Connectable):
         self.shadow.image = pygame.transform.rotate(self.shadow.image, -90 if clockwise else 90)
         self.rotate_connections(clockwise)
 
-    def connector_coords(self) -> ((int, int), bool):
+    def connector_coords(self) -> {str: ((int, int), bool)}:
         """
         Get screencoords of the component's connectors, alongside bools whether they are connected or not
         """
@@ -108,6 +108,7 @@ class Component(Draggable, Connectable):
     def on_drop(self):
         if self.scene.panel.rect.collidepoint(*self.pos):
             self.kill()
+            self.scene.audio.play_sound("delete")
             # TODO: add trash sound effect
         else:
             colliding = any([self.grid_overlap(comp) for comp in self.scene.components if self is not comp])
@@ -131,11 +132,16 @@ class Component(Draggable, Connectable):
                         connection_made = True
 
             if connection_made:
+                for (dx, dy), b in self.connector_coords().values():
+                    if b:
+                        pos = self.pos[0] + dx - (self.w // 2), self.pos[1] + dy - (self.h // 2)
+                        self.scene.conn_particles.add(simulator.connectable.ConnectionParticle(pos))
                 self.scene.audio.play_sound("connect")
             else:
                 self.scene.audio.play_sound("drop")
 
     def on_pickup(self):
+        self.disconnect()
         self.scene.audio.play_sound("pickup")
 
     def handle_events(self, events, **kwargs):
@@ -166,8 +172,6 @@ class Component(Draggable, Connectable):
                 red = Surface(self.rect.size, pygame.SRCALPHA)
                 red.fill((*colors.red, 75))
                 self.image.blit(red, (0, 0))
-        elif self.scene.floating_components.has(self):
-            self.disconnect()
 
         # Draw connectors
         if "show_connectors" in kwargs and kwargs["show_connectors"]:

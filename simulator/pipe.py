@@ -6,6 +6,7 @@ from engine.scene import Camera
 from engine.things import Draggable, Shadow
 
 import simulator
+from simulator.connectable import Connectable
 
 
 class PipeLayer:
@@ -48,7 +49,7 @@ class PipeLayer:
                 self.held.update_image(camera)
 
 
-class Pipe(Draggable):
+class Pipe(Draggable, Connectable):
     def __init__(self, pipelayer, begin, end):
         Draggable.__init__(
             self,
@@ -56,6 +57,7 @@ class Pipe(Draggable):
             group=pipelayer.scene.pipes,
             float_group=pipelayer.scene.floating_components
         )
+        Connectable.__init__(self, "")
 
         self.scene = pipelayer.scene
         self.pipelayer = pipelayer
@@ -113,6 +115,7 @@ class Pipe(Draggable):
     def on_drop(self):
         if self.scene.panel.rect.collidepoint(*self.pos):
             self.kill()
+            self.scene.audio.play_sound("delete")
         else:
             w, h = abs(self.begin[0] - self.end[0]) + 1, abs(self.begin[1] - self.end[1]) + 1
             self.pos = self.grid.snap(self.pos, (w, h))

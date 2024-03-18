@@ -1,6 +1,11 @@
 from typing import Any
 import re
 
+import pygame.draw
+
+from engine.particle import Particle
+from engine import colors
+
 
 class Connectable:
     """
@@ -47,26 +52,22 @@ class Connectable:
                 self.connections[c].connections[self.opposites[c]] = None
                 self.connections[c] = None
 
-    def __repr__(self):
-        res = ""
-        for d in "NESW":
-            res += f"{d}: "
-            if d not in self.connections:
-                res += "Blocked\n"
-            elif self.connections[d] is None:
-                res += "None\n"
-            else:
-                res += self.connections[d].name + "\n"
-        return res
 
+class ConnectionParticle(Particle):
+    def __init__(self, pos: (int, int)):
+        Particle.__init__(self, pos, 30)
+        self.radius = 7
+        self.width = 3
 
-if __name__ == '__main__':
-    b = Connectable("", "B")
-    test = Connectable("NSW", "A")
-    test.connect(b, "S")
-    print(test)
-    print(b)
-    print("------------")
-    test.disconnect()
-    print(test)
-    print(b)
+    def update(self):
+        self.radius += 0.2
+        self.width += 0.1
+
+    def render(self, surface: pygame.Surface, camera):
+        surf = pygame.Surface((self.radius*2, self.radius*2), pygame.SRCALPHA)
+        alpha = 255 - int(255 * (self.age / self.lifespan))
+        pygame.draw.circle(surf, colors.lime, (self.radius, self.radius), int(self.radius), int(self.width))
+        surf.set_alpha(alpha)
+        rect = surf.get_rect()
+        rect.center = camera.translate(self.pos)
+        surface.blit(surf, rect)

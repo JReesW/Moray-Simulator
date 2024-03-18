@@ -3,7 +3,7 @@ import sys
 import pygame
 import pygame.freetype
 
-from engine import audio, colors, things
+from engine import audio, colors, things, particle
 from engine.things import Group
 from engine.scene import Scene, Camera
 from engine.grid import Grid
@@ -35,10 +35,13 @@ class SimulationScene(Scene):
             pos=(0, 0),
             screen_size=(w, h)
         )
-        self.audio = audio.Audio()
+        self.audio = audio.AudioManager()
         self.audio.add_sound("pickup", "sounds/202313__7778__click-2.mp3")
         self.audio.add_sound("drop", "sounds/202314__7778__click-1.mp3")
         self.audio.add_sound("connect", "sounds/202312__7778__dbl-click.mp3")
+        self.audio.add_sound("delete", "sounds/508597__drooler__crumple-06.ogg")
+
+        self.conn_particles = particle.ParticleManager()
 
     def handle_events(self, events):
         mouse = pygame.mouse.get_pos()
@@ -106,6 +109,7 @@ class SimulationScene(Scene):
         self.shadows.update(self.camera)
 
         self.audio.execute()
+        self.conn_particles.update()
 
     def render(self, surface: pygame.Surface, fonts: {str: pygame.freetype.SysFont}):
         surface.fill(colors.gainsboro)
@@ -115,6 +119,8 @@ class SimulationScene(Scene):
         self.shadows.draw(surface)
         self.components.draw(surface)
         self.pipes.draw(surface)
+
+        self.conn_particles.render(surface, self.camera)
 
         self.panel.render(surface, fonts)
 
