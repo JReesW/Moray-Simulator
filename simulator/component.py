@@ -2,10 +2,12 @@ import pygame.image
 from pygame import Surface, Rect
 
 import simulator
-from simulator import Connectable, Pipe
+from simulator import Connection, Connectable, Pipe
 from engine.things import Draggable
 from engine.grid import Grid
 from engine import colors
+
+from math import dist
 
 
 def components_list():
@@ -15,7 +17,9 @@ def components_list():
         "Ball Valve": BallValve,
         "Diaphragm": Diaphragm,
         "Three-Way Valve": ThreeWayValve,
-        "Pump": Pump
+        "Pump": Pump,
+        "Fourway Valve": FourwayValve,
+        "And Valve": AndValve
     }
 
 
@@ -24,11 +28,13 @@ class Component(Draggable, Connectable):
                  scene: "simulator.SimulationScene",
                  dimensions: (int, int),
                  tile_size: int,
+                 connections: [Connection],
                  image: Surface = None,
                  rect: Rect = None,
                  pos: (int, int) = (0, 0)
                  ):
         Draggable.__init__(self, scene, image, rect, pos, scene.components, scene.floating_components)
+        Connectable.__init__(self, dimensions, connections)
 
         self.bg_image = None
         self.dim = dimensions
@@ -40,14 +46,18 @@ class Component(Draggable, Connectable):
         self.scene = scene
         self.grid = scene.grid
 
-        self.possible_connections = ""
-
     def load_image(self, path: str):
         """
         Load the component's image from its given path
         """
         self.bg_image = pygame.transform.smoothscale(pygame.image.load(path).convert_alpha(), (self.w, self.h))
         self.image = self.bg_image.copy()
+
+    @property
+    def snapped_rect(self):
+        snapped_rect = self.rect.copy()
+        snapped_rect.center = self.grid.snap(self.pos, self.dim)
+        return snapped_rect
 
     def grid_overlap(self, other: "Component"):
         """
@@ -59,27 +69,43 @@ class Component(Draggable, Connectable):
         other_rect.center = self.grid.tile_coord(other.pos)
         return rect.colliderect(other_rect)
 
-    def get_touching_side(self, other: "Component") -> str:
+    def get_touching_side(self, other: "Component | Pipe") -> str:
         """
-        Checks whether two components are touching based on their grid coordinates.
+        Checks whether the middles of two components are touching based on their grid coordinates.
         Returns the touching side, or None if they don't connect
         """
-        ax, ay = self.grid.tile_coord(self.pos)
-        bx, by = self.grid.tile_coord(other.pos)
-        if ax == bx:
-            if abs(d := ay - by) - 1 == (self.dim[1] // 2) + (other.dim[1] // 2):
-                return "S" if d < 0 else "N"
-        elif ay == by:
-            if abs(d := ax - bx) - 1 == (self.dim[0] // 2) + (other.dim[0] // 2):
-                return "E" if d < 0 else "W"
+        half_t = self.grid.tile_size // 2
+        w, h = self.dimensions
 
-    def check_potential_connection(self, other: "Component", side: str):
+        # Get tile coords of the top-left corners
+        ax, ay = self.grid.tile_coord((self.snapped_rect.left + half_t, self.snapped_rect.top + half_t))
+        bx, by = self.grid.tile_coord((other.snapped_rect.left + half_t, other.snapped_rect.top + half_t))
+
+        # Create a tile coord rect of B
+        rect_b = pygame.Rect(bx, by, *other.dimensions)
+
+        if rect_b.colliderect((ax, ay, w+1, h)):
+            return "E"
+        elif rect_b.colliderect((ax, ay, w, h+1)):
+            return "S"
+        elif rect_b.colliderect((ax-1, ay, w, h)):
+            return "W"
+        elif rect_b.colliderect((ax, ay-1, w, h)):
+            return "N"
+
+    def get_connections_on_side(self, other: "Component", side: str) -> {Connection: Connection}:
         """
-        Check the potential connection for this component and the other given component on a given connection side
+        Return a dict of connections that connect to the connections of a given component
         """
-        if side in self.connections and self.opposites[side] in other.connections:
-            self.possible_connections += side
-            other.possible_connections += self.opposites[side]
+        res = {}
+        coords_a = self.connector_coords()
+        coords_b = other.connector_coords()
+        for a in self.connections:
+            if a.direction == side:
+                for b in other.connections:
+                    if a.opposes(b) and dist(coords_a[a][0], coords_b[b][0]) < self.grid.tile_size // 2:
+                        res[a] = b
+        return res
 
     def rotate(self, clockwise=True):
         """
@@ -89,27 +115,28 @@ class Component(Draggable, Connectable):
         self.shadow.image = pygame.transform.rotate(self.shadow.image, -90 if clockwise else 90)
         self.rotate_connections(clockwise)
 
-    def connector_coords(self) -> {str: ((int, int), bool)}:
+    def connector_coords(self) -> {Connection: ((int, int), bool)}:
         """
-        Get screencoords of the component's connectors, alongside bools whether they are connected or not
+        Get world coords of the component's connections, alongside bools whether they are connected or not
         """
         res = {}
-        cx, cy = self.w / 2, self.h / 2
-        if "N" in self.connections:
-            res["N"] = ((cx, 0), self.connections["N"] is not None)
-        if "E" in self.connections:
-            res["E"] = ((self.w, cy), self.connections["E"] is not None)
-        if "S" in self.connections:
-            res["S"] = ((cx, self.h), self.connections["S"] is not None)
-        if "W" in self.connections:
-            res["W"] = ((0, cy), self.connections["W"] is not None)
+        t = self.grid.tile_size
+        for connection in self.connections:
+            if connection.direction == "N":
+                pos = (self.snapped_rect.left + t * connection.offset + t // 2, self.snapped_rect.top)
+            elif connection.direction == "S":
+                pos = (self.snapped_rect.right - t * connection.offset - t // 2, self.snapped_rect.bottom)
+            elif connection.direction == "E":
+                pos = (self.snapped_rect.right, self.snapped_rect.top + t * connection.offset + t // 2)
+            else:  # if connection.direction == "W"
+                pos = (self.snapped_rect.left, self.snapped_rect.bottom - t * connection.offset - t // 2)
+            res[connection] = (pos, connection.connection is not None)
         return res
 
     def on_drop(self):
         if self.scene.panel.rect.collidepoint(*self.pos):
             self.kill()
             self.scene.audio.play_sound("delete")
-            # TODO: add trash sound effect
         else:
             colliding = any([self.grid_overlap(comp) for comp in self.scene.components if self is not comp])
 
@@ -125,16 +152,16 @@ class Component(Draggable, Connectable):
                     self.pos = self.prev_pos
 
             connection_made = False
-            for comp in self.scene.components:
+            # TODO: Connections for pipes
+            for comp in [*self.scene.components]:  # , *self.scene.pipes]:
                 if comp is not self and (side := self.get_touching_side(comp)):
-                    if side in self.connections and self.opposites[side] in comp.connections:
-                        self.connect(comp, side)
+                    for a, b in self.get_connections_on_side(comp, side).items():
+                        a.connect(b)
                         connection_made = True
 
             if connection_made:
-                for (dx, dy), b in self.connector_coords().values():
+                for pos, b in self.connector_coords().values():
                     if b:
-                        pos = self.pos[0] + dx - (self.w // 2), self.pos[1] + dy - (self.h // 2)
                         self.scene.conn_particles.add(simulator.connectable.ConnectionParticle(pos))
                 self.scene.audio.play_sound("connect")
             else:
@@ -159,7 +186,9 @@ class Component(Draggable, Connectable):
         if self.scene.components.has(self):
             for comp in self.scene.floating_components:
                 if not isinstance(comp, Pipe) and (touching := self.get_touching_side(comp)):
-                    self.check_potential_connection(comp, touching)
+                    for a, b in self.get_connections_on_side(comp, touching).items():
+                        self.possible_connections.append(a)
+                        comp.possible_connections.append(b)
 
     def update(self, camera, *args, **kwargs):
         Draggable.update(self, camera, *args, **kwargs)
@@ -178,50 +207,85 @@ class Component(Draggable, Connectable):
             conn_image = Surface(self.rect.size, pygame.SRCALPHA)
             for k, (coord, connected) in self.connector_coords().items():
                 color = colors.lime if connected or k in self.possible_connections else colors.dark_orange
+                coord = coord[0] - self.snapped_rect.left, coord[1] - self.snapped_rect.top
                 pygame.draw.circle(conn_image, color, coord, 7, 3)
             self.image.blit(conn_image, (0, 0))
 
-        self.possible_connections = ""
+        self.possible_connections = []
 
 
 # TODO: Move these to their own files
 class GateValve(Component):
     def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, pos=pos)
-        Connectable.__init__(self, "NS")
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("N", 1),
+            Connection("S", 1)
+        ], pos=pos)
         self.load_image("images/gatevalve.png")
 
 
 class GlobeValve(Component):
     def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, pos=pos)
-        Connectable.__init__(self, "NS")
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("N", 1),
+            Connection("S", 1)
+        ], pos=pos)
         self.load_image("images/globevalve.png")
 
 
 class BallValve(Component):
     def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, pos=pos)
-        Connectable.__init__(self, "NS")
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("N", 1),
+            Connection("S", 1)
+        ], pos=pos)
         self.load_image("images/ballvalve.png")
 
 
 class Diaphragm(Component):
     def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, pos=pos)
-        Connectable.__init__(self, "NS")
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("N", 1),
+            Connection("S", 1)
+        ], pos=pos)
         self.load_image("images/diaphragm.png")
 
 
 class ThreeWayValve(Component):
     def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, pos=pos)
-        Connectable.__init__(self, "NSW")
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("N", 1),
+            Connection("S", 1),
+            Connection("W", 1)
+        ], pos=pos)
         self.load_image("images/threewayvalve.png")
 
 
 class Pump(Component):
     def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, pos=pos)
-        Connectable.__init__(self, "EW")
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("E", 1),
+            Connection("W", 1)
+        ], pos=pos)
         self.load_image("images/pump.png")
+
+
+class FourwayValve(Component):
+    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("N", 1),
+            Connection("E", 1),
+            Connection("S", 1),
+            Connection("W", 1)
+        ], pos=pos)
+        self.load_image("images/fourwayvalve.png")
+
+
+class AndValve(Component):
+    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
+        Component.__init__(self, scene, (3, 3), tile_size, [
+            Connection("W", 0),
+            Connection("W", 2),
+            Connection("E", 1)
+        ], pos=pos)
+        self.load_image("images/andvalve.png")

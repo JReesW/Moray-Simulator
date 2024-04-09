@@ -9,7 +9,7 @@ class Grid:
 
     def tile_coord(self, coord: (int, int)) -> (int, int):
         """
-        Return the grid coord a given coord is located in
+        Return the tile coord a given world coord is located in
         """
         x, y = coord
         return x // self.tile_size, y // self.tile_size

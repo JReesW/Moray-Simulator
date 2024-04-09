@@ -51,7 +51,9 @@ class Panel:
             "Ball Valve": Rect(180, 160, *self.components["Ball Valve"].rect.size),
             "Diaphragm": Rect(20, 270, *self.components["Diaphragm"].rect.size),
             "Three-Way Valve": Rect(100, 270, *self.components["Three-Way Valve"].rect.size),
-            "Pump": Rect(180, 270, *self.components["Pump"].rect.size)
+            "Pump": Rect(180, 270, *self.components["Pump"].rect.size),
+            "Fourway Valve": Rect(20, 380, *self.components["Fourway Valve"].rect.size),
+            "And Valve": Rect(100, 380, *self.components["And Valve"].rect.size),
         }
 
     def generate_button_rects(self) -> [Rect]:

@@ -57,7 +57,8 @@ class Pipe(Draggable, Connectable):
             group=pipelayer.scene.pipes,
             float_group=pipelayer.scene.floating_components
         )
-        Connectable.__init__(self, "")
+        # TODO: Connectable for pipes
+        # Connectable.__init__(self, "")
 
         self.scene = pipelayer.scene
         self.pipelayer = pipelayer
@@ -69,6 +70,13 @@ class Pipe(Draggable, Connectable):
 
         self.image = pygame.Surface((0, 0))
         self.rect = pygame.Rect(0, 0, 0, 0)
+
+        self.debug = 0
+        self.altered = False
+
+    @property
+    def dim(self):
+        return abs(self.begin[0] - self.end[0]) + 1, abs(self.begin[1] - self.end[1]) + 1
 
     def calc_rect(self):
         t = self.grid.tile_size
@@ -83,9 +91,25 @@ class Pipe(Draggable, Connectable):
 
         return pygame.Rect(left, top, w, h)
 
+    def handle_events(self, events, **kwargs):
+        Draggable.handle_events(self, events, **kwargs)
+
+        mouse = pygame.mouse.get_pos()
+        for event in events:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_v:
+                if self.rect.collidepoint(*mouse):
+                    self.debug = (self.debug + 1) % 4
+                    self.altered = True
+
     def update(self, camera, *args, **kwargs):
         if self.pipelayer.held is not self:
             Draggable.update(self, camera, *args, **kwargs)
+
+        if self.altered:
+            self.altered = False
+            self.update_image(camera)
+
+        # self.bg_
 
     def update_image(self, camera):
         if self.begin[0] < self.end[0] or self.begin[1] < self.end[1]:
@@ -105,10 +129,12 @@ class Pipe(Draggable, Connectable):
         # Draw a vertical line if the width is 1
         if abs(self.begin[0] - self.end[0]) + 1 == 1:
             self.horizontal = False
-            pygame.draw.line(self.image, colors.black, (t // 2, t // 2), (t // 2, h - t // 2), 3)
+            self.connections = {"N": None, "S": None}
+            pygame.draw.line(self.image, colors.black, (t // 2, t // 2 if self.debug & 1 else 0), (t // 2, h - t // 2 if self.debug & 2 else h), 3)
         else:  # Otherwise a horizontal line
             self.horizontal = True
-            pygame.draw.line(self.image, colors.black, (t // 2, t // 2), (w - t // 2, t // 2), 3)
+            self.connections = {"E": None, "W": None}
+            pygame.draw.line(self.image, colors.black, (t // 2 if self.debug & 1 else 0, t // 2), (w - t // 2 if self.debug & 2 else w, t // 2), 3)
 
         self.shadow.reload(rect=self.rect)
 
