@@ -6,6 +6,7 @@ from simulator.components.threeway_valve import ThreewayValve
 from simulator.components.pump import Pump
 from simulator.components.fourway_valve import FourwayValve
 from simulator.components.and_gate import AndGate
+from simulator.components.fitting import Fitting
 
 
 components_dict = {
@@ -16,5 +17,6 @@ components_dict = {
     "Three-Way Valve": ThreewayValve,
     "Pump": Pump,
     "Fourway Valve": FourwayValve,
-    "And Valve": AndGate
+    "And Valve": AndGate,
+    "Fitting": Fitting
 }

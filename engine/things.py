@@ -156,7 +156,7 @@ class Shadow(Sprite):
         self.image = None
         self.rect = None
 
-        self.reload()
+        self.reload(rect=self.thing.rect.copy())
 
     def reload(self, image=None, rect=None):
         """
@@ -168,8 +168,5 @@ class Shadow(Sprite):
             self.image = image.copy()
         self.image.fill((0, 0, 0, 78), None, pygame.BLEND_RGBA_MULT)
 
-        if rect is None:
-            self.rect = self.thing.rect.copy()
-            self.rect.center = (self.thing.rect.centerx + 10, self.thing.rect.centery + 10)
-        else:
+        if rect is not None:
             self.rect = rect.copy()

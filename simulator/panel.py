@@ -54,6 +54,7 @@ class Panel:
             "Pump": Rect(180, 270, *self.components["Pump"].rect.size),
             "Fourway Valve": Rect(20, 380, *self.components["Fourway Valve"].rect.size),
             "And Valve": Rect(100, 380, *self.components["And Valve"].rect.size),
+            "Fitting": Rect(180, 380, *self.components["Fitting"].rect.size),
         }
 
     def generate_button_rects(self) -> [Rect]:
@@ -115,7 +116,7 @@ class Panel:
 
             # Render the components
             for i, (name, comp) in enumerate(self.components.items()):
-                surface.blit(comp.image, self.component_rects[name])
+                surface.blit(comp.bg_image, self.component_rects[name])
                 comp_rect = self.component_rects[name]
 
                 surf, rect = fonts['bold'].render(name, colors.black)
