@@ -5,7 +5,7 @@ from pygame.freetype import Font
 
 from engine import colors
 
-from simulator.component import components_list
+from simulator.components import components_dict
 
 
 buttons = [
@@ -22,7 +22,7 @@ class Panel:
         self.rect = Rect(0, 0, w, h)
         self.out = True
 
-        self.component_types = components_list()
+        self.component_types = components_dict
         self.components = {}
         self.parse_components()
         self.component_rects = self.generate_component_rects()

@@ -82,8 +82,9 @@ class Connectable:
         Disconnect all of this connectable's connections
         """
         for connection in self.connections:
-            # TODO: maybe rename some things lmao
+            # if this connection is connected to another
             if connection.connection is not None:
+                # remove the connection on both sides, first the other, then self
                 connection.connection.connection = None
                 connection.connection = None
 

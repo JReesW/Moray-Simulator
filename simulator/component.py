@@ -4,23 +4,9 @@ from pygame import Surface, Rect
 import simulator
 from simulator import Connection, Connectable, Pipe
 from engine.things import Draggable
-from engine.grid import Grid
 from engine import colors
 
 from math import dist
-
-
-def components_list():
-    return {
-        "Gate Valve": GateValve,
-        "Globe Valve": GlobeValve,
-        "Ball Valve": BallValve,
-        "Diaphragm": Diaphragm,
-        "Three-Way Valve": ThreeWayValve,
-        "Pump": Pump,
-        "Fourway Valve": FourwayValve,
-        "And Valve": AndValve
-    }
 
 
 class Component(Draggable, Connectable):
@@ -42,7 +28,6 @@ class Component(Draggable, Connectable):
         self.tile_size = tile_size
         self.rect = Rect(*pos, self.w, self.h)
 
-        # TODO: perhaps remove scene from Thing, as this might be the only need for it atm
         self.scene = scene
         self.grid = scene.grid
 
@@ -212,80 +197,3 @@ class Component(Draggable, Connectable):
             self.image.blit(conn_image, (0, 0))
 
         self.possible_connections = []
-
-
-# TODO: Move these to their own files
-class GateValve(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("N", 1),
-            Connection("S", 1)
-        ], pos=pos)
-        self.load_image("images/gatevalve.png")
-
-
-class GlobeValve(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("N", 1),
-            Connection("S", 1)
-        ], pos=pos)
-        self.load_image("images/globevalve.png")
-
-
-class BallValve(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("N", 1),
-            Connection("S", 1)
-        ], pos=pos)
-        self.load_image("images/ballvalve.png")
-
-
-class Diaphragm(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("N", 1),
-            Connection("S", 1)
-        ], pos=pos)
-        self.load_image("images/diaphragm.png")
-
-
-class ThreeWayValve(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("N", 1),
-            Connection("S", 1),
-            Connection("W", 1)
-        ], pos=pos)
-        self.load_image("images/threewayvalve.png")
-
-
-class Pump(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("E", 1),
-            Connection("W", 1)
-        ], pos=pos)
-        self.load_image("images/pump.png")
-
-
-class FourwayValve(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("N", 1),
-            Connection("E", 1),
-            Connection("S", 1),
-            Connection("W", 1)
-        ], pos=pos)
-        self.load_image("images/fourwayvalve.png")
-
-
-class AndValve(Component):
-    def __init__(self, scene: "simulator.SimulationScene", tile_size: int, pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (3, 3), tile_size, [
-            Connection("W", 0),
-            Connection("W", 2),
-            Connection("E", 1)
-        ], pos=pos)
-        self.load_image("images/andvalve.png")
