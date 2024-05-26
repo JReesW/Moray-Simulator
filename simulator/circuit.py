@@ -2,12 +2,13 @@ from collections import Counter
 
 
 class Current:
-    def __init__(self, amps: float, towards: "Node"):
+    def __init__(self, amps: float, source: "Node", target: "Node"):
         self.amps = amps
-        self.towards = towards
+        self.source = source
+        self.target = target
 
     def __repr__(self):
-        return f"({self.amps}A -> {self.towards.name})"
+        return f"({self.amps}A {self.source.name} -> {self.target.name})"
 
 
 """
@@ -33,6 +34,7 @@ class Node(CircuitComponent):
     def __init__(self, name: str):
         CircuitComponent.__init__(self, name)
 
+        # What we are trying to find
         self.voltage = None
 
     def __repr__(self):
@@ -45,6 +47,8 @@ class Resistor(CircuitComponent):
 
         self.resistance = resistance
         self.nodes = tuple(sorted(nodes))
+
+        # These are what we are trying to find
         self.current = None
         self.voltage_drop = None
 
@@ -65,7 +69,7 @@ class VoltageSource(CircuitComponent):
 
 
 """
-Transitions
+Transformations
 """
 
 
@@ -73,11 +77,15 @@ class Transformation:
     def __init__(self):
         pass
 
+    def __repr__(self):
+        return self.__class__.__name__
+
 
 class Series(Transformation):
     def __init__(self, source: [Resistor]):
         Transformation.__init__(self)
 
+        # TODO: maybe specify that the source will basically always be only two resistors
         self.source = source
         resistance = self.get_resistance()
         end_nodes = self.get_end_nodes()
@@ -133,7 +141,7 @@ class WyeDelta(Transformation):
 
     def get_new_resistor(self, _a: Resistor, _b: Resistor, *, other: Resistor) -> Resistor:
         """
-        Get the resistor that goes over given resistors a and b in a wye-delta transformation
+        Get the resistor that goes over given resistors a and b in a Wye-Delta transformation
         """
         count = Counter(list(sum([r.nodes for r in self.source], ())))
         center = [n for n in count if count[n] == 3][0]
@@ -163,6 +171,7 @@ class Circuit:
         returning the resistor and list of transformations it took to simplify
         """
         # TODO: add voltage source parameter to specify around which source the circuit should be simplified
+        # TODO: make sure to remove the voltage sources not in focus
 
         active_resistors = self.resistors.copy()
         transformations = []
@@ -214,34 +223,86 @@ class Circuit:
 
     def solve(self):
         """
-        Solve the circuit, calculating the current and voltage drop going through each resistor
+        Solve the circuit, calculating the current and voltage everywhere in the circuit
         """
+        # Get the equivalent resistor and the steps it took to get it
         eq_resistor, transformations = self.simplify()
 
+        # Set the initial voltages and currents
         self.voltage_source.pos_node.voltage = self.voltage_source.voltage
         self.voltage_source.neg_node.voltage = 0
         current = self.voltage_source.voltage / eq_resistor.resistance
-        eq_resistor.current = Current(current, min(eq_resistor.nodes, key=lambda n: n.voltage))
+        eq_resistor.current = Current(current, *sorted(eq_resistor.nodes, key=lambda n: n.voltage, reverse=True))
+        eq_resistor.voltage_drop = self.voltage_source.voltage
 
-        print(eq_resistor.current)
+        # Work backwards through the steps, solving currents and voltages along the way
+        for step in reversed(transformations):
+            match step:
+                case Series(source=[a, b], result=c):
+                    # Determine the order in which a and b occur,
+                    # stronger being the resistor bordering the higher voltage node
+                    weaker, stronger = (a, b) if c.current.target in a.nodes else (b, a)
+
+                    # Both have the same amps in their current. Weaker has the same target node as c,
+                    # while stronger targets the node that disappeared during the transformation
+                    weaker.current = c.current
+                    source_target = sorted(stronger.nodes, key=lambda n: 1 if n.voltage is None else 0)
+                    stronger.current = Current(c.current.amps, *source_target)
+
+                    # Calculate the voltage drops
+                    stronger.voltage_drop = stronger.current.amps * stronger.resistance
+                    weaker.voltage_drop = weaker.current.amps * weaker.resistance
+                    stronger.current.target.voltage = stronger.current.source.voltage - stronger.voltage_drop
+
+                case Parallel(source=resistors, result=eq):
+                    for resistor in resistors:
+                        # No fuss, voltage drop is the same, as are source/target nodes. Only current is calculated with I=V/R
+                        resistor.voltage_drop = eq.voltage_drop
+                        resistor.current = Current(resistor.voltage_drop / resistor.resistance, eq.current.source, eq.current.target)
+
+                case WyeDelta(source=[a, b, c], result=[d, e, f]):
+                    # Get the center node, which disappears during the Wye-Delta transformation
+                    center = next(n for n in a.nodes if n.voltage is None)
+
+                    # a gets d and e's currents combined, b gets d and f, c gets e and f
+                    for original, first, second in [(a, d, e), (b, d, f), (c, e, f)]:
+                        # Whichever node isn't the center node
+                        non_center = next(n for n in original.nodes if n is not center)
+
+                        # If both currents go in the same direction, add them together
+                        if first.current.source == non_center and second.current.source == non_center:
+                            original.current = Current(first.current.amps + second.current.amps, non_center, center)
+                        elif first.current.target == non_center and second.current.target == non_center:
+                            original.current = Current(first.current.amps + second.current.amps, center, non_center)
+                        # Otherwise take the positive difference in amps between the two
+                        else:
+                            weak, strong = sorted((first.current, second.current), key=lambda cur: cur.amps)
+                            source_target = (center, strong.target) if strong.target is non_center else (strong.source, center)
+                            original.current = Current(strong.amps - weak.amps, *source_target)
+
+                        # Calculate voltage drop of the resistor and voltage of the new node
+                        original.voltage_drop = original.current.amps * original.resistance
+                        if original.current.target.voltage is None:
+                            original.current.target.voltage = original.current.source.voltage - original.voltage_drop
 
 
 if __name__ == '__main__':
+    # Series and parallel example, see whiteboard photo
     # N = {
     #     "alpha": Node("alpha"),
     #     "beta": Node("beta"),
     #     "gamma": Node("gamma"),
-    #     "delta": Node("delta"),
-    #     "epsilon": Node("epsilon")
+    #     "delta": Node("delta")
     # }
     # R = [
     #     Resistor("A", 5, (N["alpha"], N["beta"])),
     #     Resistor("B", 8, (N["beta"], N["delta"])),
     #     Resistor("C", 3, (N["beta"], N["gamma"])),
-    #     Resistor("D", 3, (N["gamma"], N["epsilon"])),
-    #     Resistor("E", 4, (N["epsilon"], N["delta"]))
+    #     Resistor("D", 7, (N["gamma"], N["delta"]))
     # ]
     # V = [VoltageSource("V0", 9, N["alpha"], N["delta"])]
+
+    # Wye-Delta, parallel, and series, see WYE-DELTA QUESTION google doc
     N = {
         "alpha": Node("alpha"),
         "beta": Node("beta"),
@@ -257,8 +318,24 @@ if __name__ == '__main__':
     ]
     V = [VoltageSource("V0", 8, N["alpha"], N["delta"])]
 
+    # Simple series test
+    # N = {
+    #     "alpha": Node("alpha"),
+    #     "beta": Node("beta"),
+    #     "gamma": Node("gamma")
+    # }
+    # R = [
+    #     Resistor("A", 6, (N["alpha"], N["beta"])),
+    #     Resistor("B", 8, (N["beta"], N["gamma"]))
+    # ]
+    # V = [VoltageSource("V0", 8, N["alpha"], N["gamma"])]
+
     circuit = Circuit(N.values(), R, V[0])
 
     # test
     print(circuit.simplify())
-    print(circuit.solve())
+    circuit.solve()
+    for _r in circuit.resistors.values():
+        print(_r.name, _r.resistance, _r.current, _r.voltage_drop)
+    for _n in circuit.nodes.values():
+        print(_n.name, _n.voltage)
