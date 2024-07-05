@@ -1,12 +1,12 @@
 import pygame
 # from pygame.sprite import Sprite
 
-from engine import colors
+from engine import colors, debug
 from engine.scene import Camera
 from engine.things import Draggable, Shadow
 
 import simulator
-from simulator.connectable import Connectable
+from simulator.connectable import Connectable, Connection
 
 
 class PipeLayer:
@@ -30,8 +30,9 @@ class PipeLayer:
                 self.held.held = False
                 pygame.sprite.Sprite.add(self.held, self.scene.pipes)
                 pygame.sprite.Sprite.add(Shadow(self.held), self.scene.shadows)
-                self.held.update_image(camera)
+                self.held.update_pipelaying()
             elif self.held is not None and event.type == pygame.MOUSEBUTTONUP:
+                self.held.init_connections()
                 self.held.on_drop()
                 self.held = None
 
@@ -46,19 +47,16 @@ class PipeLayer:
 
             if self.held.end != (nx, ny):
                 self.held.end = (nx, ny)
-                self.held.update_image(camera)
+                self.held.update_pipelaying()
 
 
-class Pipe(Draggable, Connectable):
+class Pipe(Connectable):
     def __init__(self, pipelayer, begin, end):
-        Draggable.__init__(
+        Connectable.__init__(
             self,
             pipelayer.scene,
-            group=pipelayer.scene.pipes,
-            float_group=pipelayer.scene.floating_components
+            (0, 0)
         )
-        # TODO: Connectable for pipes
-        # Connectable.__init__(self, "")
 
         self.scene = pipelayer.scene
         self.pipelayer = pipelayer
@@ -68,11 +66,22 @@ class Pipe(Draggable, Connectable):
         self.end = end
         self.horizontal = False
 
+        self.bg_image = None
         self.image = pygame.Surface((0, 0))
         self.rect = pygame.Rect(0, 0, 0, 0)
 
-        self.debug = 0
-        self.altered = False
+    def init_connections(self):
+        """
+        Create and set the pipe's connections once the pipelayer has finished creating this pipe
+        """
+        self.dimensions = self.dim
+        if self.horizontal:
+            self.connections = [Connection("W", 0), Connection("E", 0)]
+        else:
+            self.connections = [Connection("N", 0), Connection("S", 0)]
+
+        for connection in self.connections:
+            connection.connectable = self
 
     @property
     def dim(self):
@@ -96,22 +105,45 @@ class Pipe(Draggable, Connectable):
 
         mouse = pygame.mouse.get_pos()
         for event in events:
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_v:
-                if self.rect.collidepoint(*mouse):
-                    self.debug = (self.debug + 1) % 4
-                    self.altered = True
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_b:
+                    if self.rect.collidepoint(*mouse):
+                        print(self.dimensions)
 
     def update(self, camera, *args, **kwargs):
         if self.pipelayer.held is not self:
             Draggable.update(self, camera, *args, **kwargs)
 
-        if self.altered:
-            self.altered = False
-            self.update_image(camera)
+        self.image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
 
-        # self.bg_
+        if abs(self.begin[1] - self.end[1]) + 1 > 1:
+            self.horizontal = False
+        elif abs(self.begin[0] - self.end[0]) + 1 > 1:
+            self.horizontal = True
 
-    def update_image(self, camera):
+        t = self.grid.tile_size
+        mod1 = t // 2 if self.connections and self.connections[0].connection is None else 0
+        mod2 = t // 2 if self.connections and self.connections[1].connection is None else 0
+        if not self.horizontal:
+            start_pos = (t // 2, mod1)
+            end_pos = (t // 2, self.rect.height - mod2)
+        else:
+            start_pos = (mod1, t // 2)
+            end_pos = (self.rect.width - mod2, t // 2)
+
+        pygame.draw.line(self.image, colors.black, start_pos, end_pos, 3)
+
+        self.shadow.reload(rect=self.rect)
+
+        if "show_connectors" in kwargs and kwargs["show_connectors"]:
+            conn_image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
+            for k, (coord, connected) in self.connector_coords().items():
+                if connected and k.connection.connectable.__class__.__name__ not in ["Fitting", "Pipe"]:
+                    coord = coord[0] - self.snapped_rect.left, coord[1] - self.snapped_rect.top
+                    pygame.draw.circle(conn_image, colors.lime, coord, 7, 3)
+            self.image.blit(conn_image, (0, 0))
+
+    def update_pipelaying(self):
         if self.begin[0] < self.end[0] or self.begin[1] < self.end[1]:
             begin = self.grid.world_coord(self.begin)
             end = self.grid.world_coord(self.end, corner="bottomright")
@@ -119,33 +151,30 @@ class Pipe(Draggable, Connectable):
             begin = self.grid.world_coord(self.end)
             end = self.grid.world_coord(self.begin, corner="bottomright")
 
-        t = self.grid.tile_size
         w, h = abs(begin[0] - end[0]), abs(begin[1] - end[1])
-        self.rect = pygame.Rect(*begin, w, h)
-        self.pos = camera.translate(self.rect.center)
-
-        self.image = pygame.Surface((w, h), pygame.SRCALPHA)
-
-        # Draw a vertical line if the width is 1
-        if abs(self.begin[0] - self.end[0]) + 1 == 1:
-            self.horizontal = False
-            self.connections = {"N": None, "S": None}
-            pygame.draw.line(self.image, colors.black, (t // 2, t // 2 if self.debug & 1 else 0), (t // 2, h - t // 2 if self.debug & 2 else h), 3)
-        else:  # Otherwise a horizontal line
-            self.horizontal = True
-            self.connections = {"E": None, "W": None}
-            pygame.draw.line(self.image, colors.black, (t // 2 if self.debug & 1 else 0, t // 2), (w - t // 2 if self.debug & 2 else w, t // 2), 3)
-
-        self.shadow.reload(rect=self.rect)
+        self.rect = pygame.Rect(*self.scene.camera.translate(begin), w, h)
+        self.pos = self.scene.camera.untranslate(self.rect.center)
 
     def on_drop(self):
-        if self.scene.panel.rect.collidepoint(*self.pos):
-            self.kill()
-            self.scene.audio.play_sound("delete")
-        else:
-            w, h = abs(self.begin[0] - self.end[0]) + 1, abs(self.begin[1] - self.end[1]) + 1
-            self.pos = self.grid.snap(self.pos, (w, h))
+        Connectable.on_drop(self)
 
-            d = self.grid.tile_size // 2
-            self.begin = self.grid.tile_coord((self.rect.left + d, self.rect.top + d))
-            self.end = self.grid.tile_coord((self.rect.right - d, self.rect.bottom - d))
+        w, h = abs(self.begin[0] - self.end[0]) + 1, abs(self.begin[1] - self.end[1]) + 1
+        self.pos = self.grid.snap(self.pos, (w, h))
+
+        d = self.grid.tile_size // 2
+        # left, top = self.rect.topleft
+        # right, bottom = self.rect.bottomright
+        left, top = self.scene.camera.untranslate(self.rect.topleft)
+        right, bottom = self.scene.camera.untranslate(self.rect.bottomright)
+        self.begin = self.grid.tile_coord((left + d, top + d))
+        self.end = self.grid.tile_coord((right - d, bottom - d))
+
+    # def on_drop(self):
+    #     Connectable.on_drop(self)
+    #
+    #     w, h = abs(self.begin[0] - self.end[0]) + 1, abs(self.begin[1] - self.end[1]) + 1
+    #     self.pos = self.grid.snap(self.pos, (w, h))
+    #
+    #     d = self.grid.tile_size // 2
+    #     self.begin = self.grid.tile_coord((self.rect.left + d, self.rect.top + d))
+    #     self.end = self.grid.tile_coord((self.rect.right - d, self.rect.bottom - d))

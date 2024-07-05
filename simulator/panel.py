@@ -38,7 +38,7 @@ class Panel:
         Set up basic instances of components for drawing
         """
         for comp in self.component_types:
-            self.components[comp] = self.component_types[comp](self.scene, self.scene.grid.tile_size)
+            self.components[comp] = self.component_types[comp](self.scene)
 
     def generate_component_rects(self) -> {str: Rect}:
         """
@@ -87,7 +87,7 @@ class Panel:
                     # TODO: Set up a global list of positions
                     for i, (name, comp) in enumerate(self.components.items()):
                         if self.component_rects[name].collidepoint(*mouse):
-                            self.scene.add_component(self.component_types[name](self.scene, self.scene.grid.tile_size))
+                            self.scene.add_component(self.component_types[name](self.scene))
                             self.mode = "cursor"
                             self.scene.audio.play_sound("pickup")
 

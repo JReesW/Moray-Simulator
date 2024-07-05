@@ -5,7 +5,8 @@ from typing import Type
 import pygame
 import pygame.freetype
 
-from engine.scene import Director, Scene
+from engine import director, debug
+from engine.scene import Scene
 
 
 class Game:
@@ -30,8 +31,7 @@ class Game:
         h_wnd = user32.GetForegroundWindow()
         user32.ShowWindow(h_wnd, 3)
 
-        self.director = Director()
-        self.director.set_scene(starting_scene(**starting_scene_args))
+        director.set_scene(starting_scene(**starting_scene_args))
 
     def frame(self):
         self.clock.tick(60)
@@ -46,9 +46,12 @@ class Game:
                 sys.exit()
 
         # Call the necessary scene functions of the active scene
-        self.director.scene.handle_events(events)
-        self.director.scene.update()
-        self.director.scene.render(surface, self.fonts)
+        director.scene.handle_events(events)
+        director.scene.update()
+        director.scene.render(surface, self.fonts)
+
+        if debug.is_active():
+            debug.render(surface)
 
         self.screen.blit(surface, (0, 0))
 

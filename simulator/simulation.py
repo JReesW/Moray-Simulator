@@ -3,13 +3,13 @@ import sys
 import pygame
 import pygame.freetype
 
-from engine import audio, colors, things, particle
+from engine import audio, colors, things, particle, debug
 from engine.things import Group
 from engine.scene import Scene, Camera
 from engine.grid import Grid
 
 from simulator.panel import Panel
-from simulator.pipe import PipeLayer, Pipe
+from simulator.pipe import PipeLayer
 
 
 class SimulationScene(Scene):
@@ -45,6 +45,10 @@ class SimulationScene(Scene):
 
     def handle_events(self, events):
         mouse = pygame.mouse.get_pos()
+
+        # debug.debug("Mouse screen", mouse)
+        debug.debug("Mouse world", self.camera.untranslate(mouse))
+        debug.debug("Mouse grid", self.grid.tile_coord(self.camera.untranslate(mouse)))
 
         try:
             # If the mouse is on the panel, handle events there
@@ -94,6 +98,11 @@ class SimulationScene(Scene):
                         print(f"rect: {pipe.rect}")
                         print(f"begin: {pipe.begin}")
                         print(f"end: {pipe.end}")
+                elif event.key == pygame.K_BACKQUOTE:
+                    if debug.is_active():
+                        debug.disable()
+                    else:
+                        debug.enable()
 
     def update(self):
         # Update the panel
@@ -104,7 +113,7 @@ class SimulationScene(Scene):
         # Update the sprite groups
         show_connectors = len(self.floating_components) > 0 or self.panel.mode == "pipe"
         self.floating_components.update(self.camera, show_connectors=show_connectors)
-        self.pipes.update(self.camera)
+        self.pipes.update(self.camera, show_connectors=show_connectors)
         self.components.update(self.camera, show_connectors=show_connectors)
         self.shadows.update(self.camera)
 
