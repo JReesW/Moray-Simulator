@@ -1,16 +1,15 @@
 import pygame
 
-import simulator
 from simulator import Connection, Pipe
 from simulator.component import Component
 
 from engine.things import Draggable
-from engine import colors
+from engine import colors, director
 
 
 class Fitting(Component):
-    def __init__(self, scene: "simulator.SimulationScene", pos: (int, int) = (0, 0)):
-        Component.__init__(self, scene, (1, 1), [
+    def __init__(self, pos: (int, int) = (0, 0)):
+        Component.__init__(self, (1, 1), [
             Connection("N", 0),
             Connection("E", 0),
             Connection("S", 0),
@@ -25,13 +24,13 @@ class Fitting(Component):
 
         self.image = self.bg_image.copy()
 
-        if self.scene.components.has(self):
-            if any([self.grid_overlap(comp) for comp in self.scene.floating_components if not isinstance(comp, Pipe)]):
+        if director.scene.components.has(self):
+            if any([self.grid_overlap(comp) for comp in director.scene.floating_components if not isinstance(comp, Pipe)]):
                 red = pygame.Surface(self.rect.size, pygame.SRCALPHA)
                 red.fill((*colors.red, 75))
                 self.image.blit(red, (0, 0))
 
-        half_t = self.grid.tile_size // 2
+        half_t = director.scene.grid.tile_size // 2
         for connection in self.connections:
             if connection.connection is not None:
                 if connection.direction == "N":

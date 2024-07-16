@@ -16,11 +16,7 @@ class Game:
 
         pygame.init()
         pygame.freetype.init()
-        self.fonts = {
-            "default": pygame.freetype.SysFont("Arial", 14),
-            "bold": pygame.freetype.SysFont("Arial", 14, bold=True),
-            "title": pygame.freetype.SysFont("Arial", 40, bold=True)
-        }
+
         self.screen = pygame.display.set_mode((0, 0), pygame.RESIZABLE)
         pygame.display.set_caption(caption)
         self.clock = pygame.time.Clock()
@@ -48,7 +44,7 @@ class Game:
         # Call the necessary scene functions of the active scene
         director.scene.handle_events(events)
         director.scene.update()
-        director.scene.render(surface, self.fonts)
+        director.scene.render(surface)
 
         if debug.is_active():
             debug.render(surface)

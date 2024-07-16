@@ -3,8 +3,7 @@ from pygame.sprite import Sprite
 from pygame import Surface, Rect
 import pygame
 
-from engine import colors
-from engine.scene import Scene
+from engine import colors, director
 
 
 class IgnoreOtherThings(Exception):
@@ -33,10 +32,8 @@ class Thing(Sprite):
     The basic actor of a scene
     """
 
-    def __init__(self, scene: Scene, image: Surface = None, rect: Rect = None, pos: (int, int) = (0, 0)):
+    def __init__(self, image: Surface = None, rect: Rect = None, pos: (int, int) = (0, 0)):
         Sprite.__init__(self)
-
-        self.scene = scene
 
         self.rect = rect if rect is not None else Rect(50, 50, 10, 10)
         self.pos = pos
@@ -82,17 +79,13 @@ class Draggable(Thing):
     A thing that can be dragged using the mouse
     """
 
-    def __init__(self, scene: Scene, image: Surface = None, rect: Rect = None, pos: (int, int) = (0, 0),
-                 group: Group = None, float_group: Group = None):
-        Thing.__init__(self, scene, image, rect, pos)
+    def __init__(self, image: Surface = None, rect: Rect = None, pos: (int, int) = (0, 0)):
+        Thing.__init__(self, image, rect, pos)
 
         # Whether the mouse is dragging the thing
         self.held = True
 
         self.prev_pos = None
-
-        self.group = group if group is not None else []
-        self.float_group = float_group if float_group is not None else []
 
     def handle_events(self, events, **kwargs):
         mouse = pygame.mouse.get_pos()
@@ -102,15 +95,15 @@ class Draggable(Thing):
                 # Set __held to true if the mouse is clicking while on top of the thing
                 self.held = True
                 self.prev_pos = self.pos
-                Sprite.add(self, self.float_group)
-                Sprite.remove(self, self.group)
+                Sprite.add(self, director.scene.floating_components)
+                Sprite.remove(self, director.scene.components)
                 self.on_pickup()
                 raise IgnoreOtherThings
             elif self.held and event.type == pygame.MOUSEBUTTONUP:
                 # Revert __held back to false if it was true and the mouse has been released
                 self.held = False
-                Sprite.add(self, self.group)
-                Sprite.remove(self, self.float_group)
+                Sprite.add(self, director.scene.components)
+                Sprite.remove(self, director.scene.floating_components)
                 self.on_drop()
 
     def update(self, camera, *args, **kwargs):

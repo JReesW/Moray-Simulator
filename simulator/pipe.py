@@ -1,5 +1,4 @@
 import pygame
-# from pygame.sprite import Sprite
 
 from engine import colors, debug
 from engine.scene import Camera
@@ -54,7 +53,6 @@ class Pipe(Connectable):
     def __init__(self, pipelayer, begin, end):
         Connectable.__init__(
             self,
-            pipelayer.scene,
             (0, 0)
         )
 
@@ -133,7 +131,7 @@ class Pipe(Connectable):
 
         pygame.draw.line(self.image, colors.black, start_pos, end_pos, 3)
 
-        self.shadow.reload(rect=self.rect)
+        self.shadow.reload(image=self.image)
 
         if "show_connectors" in kwargs and kwargs["show_connectors"]:
             conn_image = pygame.Surface(self.rect.size, pygame.SRCALPHA)
@@ -162,19 +160,10 @@ class Pipe(Connectable):
         self.pos = self.grid.snap(self.pos, (w, h))
 
         d = self.grid.tile_size // 2
-        # left, top = self.rect.topleft
-        # right, bottom = self.rect.bottomright
+
         left, top = self.scene.camera.untranslate(self.rect.topleft)
         right, bottom = self.scene.camera.untranslate(self.rect.bottomright)
         self.begin = self.grid.tile_coord((left + d, top + d))
         self.end = self.grid.tile_coord((right - d, bottom - d))
 
-    # def on_drop(self):
-    #     Connectable.on_drop(self)
-    #
-    #     w, h = abs(self.begin[0] - self.end[0]) + 1, abs(self.begin[1] - self.end[1]) + 1
-    #     self.pos = self.grid.snap(self.pos, (w, h))
-    #
-    #     d = self.grid.tile_size // 2
-    #     self.begin = self.grid.tile_coord((self.rect.left + d, self.rect.top + d))
-    #     self.end = self.grid.tile_coord((self.rect.right - d, self.rect.bottom - d))
+        self.shadow.reload(rect=self.rect)

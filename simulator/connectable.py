@@ -2,7 +2,7 @@ import pygame.draw
 
 from engine.things import Draggable
 from engine.particle import Particle
-from engine import colors, debug
+from engine import colors, director
 import simulator
 
 from math import dist
@@ -47,8 +47,8 @@ class Connectable(Draggable):
     Allows a thing to have connections and to connect with others
     """
 
-    def __init__(self, scene: "simulator.SimulationScene", dimensions: (int, int), image=None, rect=None, pos=None, connections: [Connection] = None, name=""):
-        Draggable.__init__(self, scene, image, rect, pos, scene.components, scene.floating_components)
+    def __init__(self, dimensions: (int, int), image=None, rect=None, pos=None, connections: [Connection] = None, name=""):
+        Draggable.__init__(self, image, rect, pos)
 
         self.dimensions = dimensions
         if connections is not None:
@@ -59,8 +59,6 @@ class Connectable(Draggable):
             self.connections = []
         self.possible_connections = []
         self.name = name  # TODO: remove name, or utilize it
-        self.scene = scene
-        self.grid = scene.grid
 
     def rotate_connections(self, clockwise=True):
         """
@@ -112,7 +110,7 @@ class Connectable(Draggable):
         Return the rect of this object were it snapped to the grid
         """
         snapped_rect = self.rect.copy()
-        snapped_rect.center = self.grid.snap(self.pos, self.dimensions)
+        snapped_rect.center = director.scene.grid.snap(self.pos, self.dimensions)
         return snapped_rect
 
     def connector_coords(self) -> {Connection: ((int, int), bool)}:
@@ -120,7 +118,7 @@ class Connectable(Draggable):
         Get world coords of the component's connections, alongside bools whether they are connected or not
         """
         res = {}
-        t = self.grid.tile_size
+        t = director.scene.grid.tile_size
         for connection in self.connections:
             if connection.direction == "N":
                 pos = (self.snapped_rect.left + t * connection.offset + t // 2, self.snapped_rect.top)
@@ -138,12 +136,12 @@ class Connectable(Draggable):
         Checks whether the middles of two components are touching based on their grid coordinates.
         Returns the touching side, or None if they don't connect
         """
-        half_t = self.grid.tile_size // 2
+        half_t = director.scene.grid.tile_size // 2
         w, h = self.dimensions
 
         # Get tile coords of the top-left corners
-        ax, ay = self.grid.tile_coord((self.snapped_rect.left + half_t, self.snapped_rect.top + half_t))
-        bx, by = self.grid.tile_coord((other.snapped_rect.left + half_t, other.snapped_rect.top + half_t))
+        ax, ay = director.scene.grid.tile_coord((self.snapped_rect.left + half_t, self.snapped_rect.top + half_t))
+        bx, by = director.scene.grid.tile_coord((other.snapped_rect.left + half_t, other.snapped_rect.top + half_t))
 
         # Create a tile coord rect of B
         rect_b = pygame.Rect(bx, by, *other.dimensions)
@@ -167,7 +165,7 @@ class Connectable(Draggable):
         for a in self.connections:
             if a.direction == side:
                 for b in other.connections:
-                    if a.opposes(b) and dist(coords_a[a][0], coords_b[b][0]) < self.grid.tile_size // 2:
+                    if a.opposes(b) and dist(coords_a[a][0], coords_b[b][0]) < director.scene.grid.tile_size // 2:
                         res[a] = b
         return res
 
@@ -177,33 +175,33 @@ class Connectable(Draggable):
         """
         # Take this object's Rect as if it were snapped to the grid
         rect = pygame.Rect(0, 0, *self.rect.size)
-        rect.center = self.grid.snap(self.pos, self.dimensions)
+        rect.center = director.scene.grid.snap(self.pos, self.dimensions)
 
         # Take the other object's Rect as if it were snapped to the grid
         other_rect = pygame.Rect(0, 0, *other.rect.size)
-        other_rect.center = self.grid.snap(other.pos, other.dimensions)
+        other_rect.center = director.scene.grid.snap(other.pos, other.dimensions)
 
         # Check if they would collide, were they snapped to the grid
         return rect.colliderect(other_rect)
 
     def early_update(self, *args, **kwargs):
-        if self.scene.components.has(self):
-            for comp in self.scene.floating_components:
+        if director.scene.components.has(self):
+            for comp in director.scene.floating_components:
                 if touching := self.get_touching_side(comp):
                     for a, b in self.get_connections_on_side(comp, touching).items():
                         self.possible_connections.append(a)
                         comp.possible_connections.append(b)
 
     def on_drop(self):
-        if self.scene.panel.rect.collidepoint(*self.scene.camera.translate(self.pos)):
+        if director.scene.panel.rect.collidepoint(*director.scene.camera.translate(self.pos)):
             self.kill()
-            self.scene.audio.play_sound("delete")
+            director.scene.audio.play_sound("delete")
         else:
-            colliding = any([self.grid_overlap(comp) for comp in self.scene.components if self is not comp])
+            colliding = any([self.grid_overlap(comp) for comp in director.scene.components if self is not comp])
 
             if not colliding:
                 # Snap the component to the grid
-                self.pos = self.grid.snap(self.pos, self.dimensions)
+                self.pos = director.scene.grid.snap(self.pos, self.dimensions)
             else:
                 # Snap the component back to the last valid spot, or kill it if there is none
                 if self.prev_pos is None:
@@ -213,7 +211,7 @@ class Connectable(Draggable):
                     self.pos = self.prev_pos
 
             connection_made = False
-            for comp in [*self.scene.components, *self.scene.pipes]:
+            for comp in [*director.scene.components, *director.scene.pipes]:
                 if comp is not self and (side := self.get_touching_side(comp)):
                     for a, b in self.get_connections_on_side(comp, side).items():
                         a.connect(b)
@@ -222,14 +220,14 @@ class Connectable(Draggable):
             if connection_made:
                 for pos, b in self.connector_coords().values():
                     if b:
-                        self.scene.conn_particles.add(simulator.connectable.ConnectionParticle(pos))
-                self.scene.audio.play_sound("connect")
+                        director.scene.conn_particles.add(simulator.connectable.ConnectionParticle(pos))
+                director.scene.audio.play_sound("connect")
             else:
-                self.scene.audio.play_sound("drop")
+                director.scene.audio.play_sound("drop")
 
     def on_pickup(self):
         self.disconnect()
-        self.scene.audio.play_sound("pickup")
+        director.scene.audio.play_sound("pickup")
 
 
 class ConnectionParticle(Particle):

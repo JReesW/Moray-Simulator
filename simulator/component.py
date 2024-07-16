@@ -1,29 +1,26 @@
 import pygame.image
 from pygame import Surface, Rect
 
-import simulator
-from simulator import Connection, Connectable, Pipe
+from simulator import Connection, Connectable
 from engine.things import Draggable
-from engine import colors
+from engine import colors, director
 
 
 class Component(Connectable):
     def __init__(self,
-                 scene: "simulator.SimulationScene",
                  dimensions: (int, int),
                  connections: [Connection],
                  image: Surface = None,
                  rect: Rect = None,
                  pos: (int, int) = (0, 0)
                  ):
-        Connectable.__init__(self, scene, dimensions, image, rect, pos, connections)
-
-        self.scene = scene
-        self.grid = scene.grid
+        Connectable.__init__(self, dimensions, image, rect, pos, connections)
 
         self.bg_image = None
+
         self.dim = dimensions
-        self.w, self.h = self.grid.tile_size * self.dim[0], self.grid.tile_size * self.dim[1]
+        t = director.scene.grid.tile_size
+        self.w, self.h = t * self.dim[0], t * self.dim[1]
         self.rect = Rect(*pos, self.w, self.h)
 
     def load_image(self, path: str):
@@ -57,10 +54,10 @@ class Component(Connectable):
 
         self.image = self.bg_image.copy()
 
-        if self.scene.components.has(self):
+        if director.scene.components.has(self):
             # Draw red if a dragging component is overlapping this component
             # TODO: maybe add back  if not isinstance(comp, Pipe)  at end of comprehension
-            if any([self.grid_overlap(comp) for comp in self.scene.floating_components]):
+            if any([self.grid_overlap(comp) for comp in director.scene.floating_components]):
                 red = Surface(self.rect.size, pygame.SRCALPHA)
                 red.fill((*colors.red, 75))
                 self.image.blit(red, (0, 0))

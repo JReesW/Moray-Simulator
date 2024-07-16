@@ -51,22 +51,17 @@ class SimulationScene(Scene):
         debug.debug("Mouse grid", self.grid.tile_coord(self.camera.untranslate(mouse)))
 
         try:
-            # If the mouse is on the panel, handle events there
-            if self.panel.rect.collidepoint(*mouse):
-                self.panel.handle_events(events)
-            elif self.panel.mode == "cursor":
+            self.panel.handle_events(events)
+
+            if self.panel.mode == "cursor":
                 # Otherwise handle components on the grid
                 for component in self.components:
                     component.handle_events(events)
 
                 for pipe in self.pipes:
                     pipe.handle_events(events)
-            elif self.panel.mode == "pipe":
+            elif self.panel.mode == "pipe" and not self.panel.rect.collidepoint(*mouse):
                 self.pipelayer.handle_events(events, self.camera)
-            # TODO: add component/pipe deleter mode
-            # elif self.panel.mode == "delete":
-            #     for component in self.components:
-            #         if component.rect.collidepoint(*mouse):
 
             # Always handle floating components
             for component in self.floating_components:
@@ -105,7 +100,7 @@ class SimulationScene(Scene):
                         debug.enable()
 
     def update(self):
-        # Update the panel
+        # Update the panel  - TODO: is this necessary?
         self.panel.update()
 
         self.components.early_update()
@@ -120,7 +115,7 @@ class SimulationScene(Scene):
         self.audio.execute()
         self.conn_particles.update()
 
-    def render(self, surface: pygame.Surface, fonts: {str: pygame.freetype.SysFont}):
+    def render(self, surface: pygame.Surface):
         surface.fill(colors.gainsboro)
 
         self.grid.render(surface, self.camera)
@@ -131,7 +126,7 @@ class SimulationScene(Scene):
 
         self.conn_particles.render(surface, self.camera)
 
-        self.panel.render(surface, fonts)
+        self.panel.render(surface)
 
         self.floating_components.draw(surface)
 

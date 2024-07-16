@@ -1,3 +1,6 @@
+Color = (int, int, int)
+
+
 alice_blue = 240, 248, 255
 antique_white = 250, 235, 215
 aqua = 0, 255, 255

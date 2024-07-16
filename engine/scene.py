@@ -94,7 +94,7 @@ class Scene:
         """
         raise NotImplementedError()
 
-    def render(self, surface, fonts):
+    def render(self, surface):
         """
         Render everything to the given surface
         """
