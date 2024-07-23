@@ -10,6 +10,7 @@ from engine.grid import Grid
 
 from simulator.panel import Panel
 from simulator.pipe import PipeLayer
+from simulator.inspectable import Inspectable
 
 
 class SimulationScene(Scene):
@@ -30,6 +31,9 @@ class SimulationScene(Scene):
         w, h = pygame.display.get_surface().get_size()
         self.panel = Panel(self, (w // 5) + 7.5, h)
 
+        # The component inspector
+        self.inspect_focus = None
+
         # The camera, for moving around the scene
         self.camera = Camera(
             pos=(0, 0),
@@ -47,8 +51,8 @@ class SimulationScene(Scene):
         mouse = pygame.mouse.get_pos()
 
         # debug.debug("Mouse screen", mouse)
-        debug.debug("Mouse world", self.camera.untranslate(mouse))
-        debug.debug("Mouse grid", self.grid.tile_coord(self.camera.untranslate(mouse)))
+        # debug.debug("Mouse world", self.camera.untranslate(mouse))
+        # debug.debug("Mouse grid", self.grid.tile_coord(self.camera.untranslate(mouse)))
 
         try:
             self.panel.handle_events(events)
@@ -62,6 +66,14 @@ class SimulationScene(Scene):
                     pipe.handle_events(events)
             elif self.panel.mode == "pipe" and not self.panel.rect.collidepoint(*mouse):
                 self.pipelayer.handle_events(events, self.camera)
+            elif self.panel.mode == "inspect":
+                if self.inspect_focus is not None:
+                    self.inspect_focus.events(events)
+
+                for component in self.components:
+                    if isinstance(component, Inspectable):
+                        if component.rect.collidepoint(*mouse):
+                            self.inspect_focus = component
 
             # Always handle floating components
             for component in self.floating_components:
@@ -103,6 +115,9 @@ class SimulationScene(Scene):
         # Update the panel  - TODO: is this necessary?
         self.panel.update()
 
+        debug.debug("components", self.components)
+        debug.debug("pipes", self.pipes)
+
         self.components.early_update()
 
         # Update the sprite groups
@@ -127,6 +142,9 @@ class SimulationScene(Scene):
         self.conn_particles.render(surface, self.camera)
 
         self.panel.render(surface)
+
+        if self.panel.mode == "inspect" and self.inspect_focus is not None:
+            self.inspect_focus.render(surface)
 
         self.floating_components.draw(surface)
 

@@ -62,4 +62,5 @@ def render(surface: Surface):
 
         left = surface.get_width() - surf.get_width()
         rect = Rect(left, 0, *surf.get_size())
+        rect.bottom = surface.get_height()
         surface.blit(surf, rect)

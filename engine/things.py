@@ -74,6 +74,7 @@ class Thing(Sprite):
             Sprite.kill(self.shadow)
 
 
+# TODO: this technically should be project specific, not an engine feature (unless refactored a lot)
 class Draggable(Thing):
     """
     A thing that can be dragged using the mouse
@@ -96,13 +97,13 @@ class Draggable(Thing):
                 self.held = True
                 self.prev_pos = self.pos
                 Sprite.add(self, director.scene.floating_components)
-                Sprite.remove(self, director.scene.components)
+                Sprite.remove(self, director.scene.pipes if self.__class__.__name__ == "Pipe" else director.scene.components)
                 self.on_pickup()
                 raise IgnoreOtherThings
             elif self.held and event.type == pygame.MOUSEBUTTONUP:
                 # Revert __held back to false if it was true and the mouse has been released
                 self.held = False
-                Sprite.add(self, director.scene.components)
+                Sprite.add(self, director.scene.pipes if self.__class__.__name__ == "Pipe" else director.scene.components)
                 Sprite.remove(self, director.scene.floating_components)
                 self.on_drop()
 

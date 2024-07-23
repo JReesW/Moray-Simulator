@@ -23,7 +23,7 @@ def between(a: float, b: float, distance: float) -> float:
 def between_points(a: point, b: point, distance: float) -> point:
     """
     Return the point between point a and point b, at a given proportional distance.
-    Distance closer to 0 is closer to a, distance closer to 1 is closer to b, distance 0.5 is exactly halfway
+    Distance closer to 0 is closer to a, distance closer to 1 is closer to b, distance 0.5 is exactly halfway.
     """
     ax, ay = a
     bx, by = b
@@ -31,3 +31,15 @@ def between_points(a: point, b: point, distance: float) -> point:
     distance = math.dist(a, b) * distance
     angle = math.atan2(ay - by, ax - bx)
     return ax - (math.cos(angle) * distance), ay - (math.sin(angle) * distance)
+
+
+def is_numeric(s: str) -> bool:
+    """
+    Return whether the string is a valid float or not.
+    Differs from str.isnumeric() by allowing a negative sign and decimal separator.
+    """
+    try:
+        _ = float(s)
+        return True
+    except ValueError:
+        return False
