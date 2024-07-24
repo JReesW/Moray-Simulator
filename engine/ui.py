@@ -20,13 +20,14 @@ class Input:
                  invalid_color: colors.Color = colors.red,
                  default_text: str = "",
                  allowed_chars=None,
-                 valid: Callable = None):
+                 validate: Callable = None):
+
         self.rect = rect
         self.selected = False
         self.text = default_text
         self.on_change = on_change
         self.allowed_chars = allowed_chars
-        self.valid = valid
+        self.validate = validate
 
         self.border_color = border_color
         self.selected_color = selected_color
@@ -50,7 +51,7 @@ class Input:
 
     def render(self, surface: Surface):
         pygame.draw.rect(surface, colors.white, self.rect)
-        color = self.invalid_color if not self.valid(self.text) else self.selected_color if self.selected else self.border_color
+        color = self.invalid_color if not self.validate(self.text) else self.selected_color if self.selected else self.border_color
         pygame.draw.rect(surface, color, self.rect, 3)
 
         # Text

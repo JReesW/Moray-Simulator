@@ -35,7 +35,7 @@ class Inspectable:
             self.input_change,
             default_text="1",
             allowed_chars=".-0123456789",
-            valid=maths.is_numeric
+            validate=maths.is_numeric
         )
 
     def events(self, events):
