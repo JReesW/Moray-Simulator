@@ -29,7 +29,7 @@ class ThreewayValve(Component, Inspectable):
         self.open_side = "N"
 
         self.slider_rect = Rect(l + 120, t + 40, 135, 20)
-        self.blue_part = 0.3  # TODO: rename
+        self.blue_part = 0.5  # TODO: rename
         self.slider_dragging = False
 
     def rotate(self, clockwise=True):

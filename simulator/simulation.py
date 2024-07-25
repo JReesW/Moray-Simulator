@@ -70,11 +70,6 @@ class SimulationScene(Scene):
                 if self.inspect_focus is not None:
                     self.inspect_focus.events(events)
 
-                for component in self.components:
-                    if isinstance(component, Inspectable):
-                        if component.rect.collidepoint(*mouse):
-                            self.inspect_focus = component
-
             # Always handle floating components
             for component in self.floating_components:
                 component.handle_events(events)
@@ -110,6 +105,18 @@ class SimulationScene(Scene):
                         debug.disable()
                     else:
                         debug.enable()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if self.panel.mode == "inspect":
+                    if self.inspect_focus is not None and self.inspect_focus.i_rect.collidepoint(*mouse):
+                        continue
+
+                    for component in self.components:
+                        if isinstance(component, Inspectable):
+                            if component.rect.collidepoint(*mouse):
+                                self.inspect_focus = component
+                                break
+                    else:
+                        self.inspect_focus = None
 
     def update(self):
         # Update the panel  - TODO: is this necessary?
@@ -137,6 +144,8 @@ class SimulationScene(Scene):
 
         self.shadows.draw(surface)
         self.components.draw(surface)
+        if self.panel.mode == "inspect" and self.inspect_focus is not None:
+            self.draw_focus_border(surface)
         self.pipes.draw(surface)
 
         self.conn_particles.render(surface, self.camera)
@@ -151,3 +160,13 @@ class SimulationScene(Scene):
     def add_component(self, comp):
         pygame.sprite.Sprite.add(comp, self.floating_components)
         pygame.sprite.Sprite.add(things.Shadow(comp), self.shadows)
+
+    def draw_focus_border(self, surface: pygame.Surface):
+        border_surf = pygame.Surface((20, 20), pygame.SRCALPHA)
+        border_rect = border_surf.get_rect()
+        points = (1, 1), (border_rect.w - 2, 1), (border_rect.w - 2, border_rect.h - 2), (1, border_rect.h - 2)
+        pygame.draw.lines(border_surf, colors.orange, True, points, 1)
+        pygame.draw.rect(border_surf, (0, 0, 0, 0), (6, 0, 8, 20))
+        pygame.draw.rect(border_surf, (0, 0, 0, 0), (0, 6, 20, 8))
+        scaled = pygame.transform.smoothscale(border_surf, self.inspect_focus.rect.size)
+        surface.blit(scaled, self.inspect_focus.rect)
