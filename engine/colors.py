@@ -149,3 +149,6 @@ white = 255, 255, 255
 white_smoke = 245, 245, 245
 yellow = 255, 255, 0
 yellow_green = 154, 205, 50
+
+
+color_list = [red, blue, orange, green, yellow, cyan, purple, pink, sienna, rosy_brown, orchid, olive]

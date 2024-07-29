@@ -23,6 +23,8 @@ class Component(Connectable):
         self.w, self.h = t * self.dim[0], t * self.dim[1]
         self.rect = Rect(*pos, self.w, self.h)
 
+        self.nodes = {c: None for c in self.connections}
+
     def load_image(self, path: str):
         """
         Load the component's image from its given path

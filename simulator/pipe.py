@@ -17,6 +17,8 @@ class PipeLayer:
         self.scene = scene
         self.held = None
 
+        self.count = 0
+
     def handle_events(self, events, camera: Camera):
         # Will only get called if the panel's mode is "pipe"
 
@@ -26,6 +28,8 @@ class PipeLayer:
             if self.held is None and event.type == pygame.MOUSEBUTTONDOWN:
                 gx, gy = self.scene.grid.tile_coord(camera.untranslate(mouse))
                 self.held = Pipe(self, (gx, gy), (gx, gy))
+                self.count += 1
+                self.held.name = f"Pipe {self.count}"
                 self.held.held = False
                 pygame.sprite.Sprite.add(self.held, self.scene.pipes)
                 pygame.sprite.Sprite.add(Shadow(self.held), self.scene.shadows)
@@ -67,6 +71,8 @@ class Pipe(Connectable):
         self.bg_image = None
         self.image = pygame.Surface((0, 0))
         self.rect = pygame.Rect(0, 0, 0, 0)
+
+        self.node = None
 
     def init_connections(self):
         """

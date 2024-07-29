@@ -11,6 +11,7 @@ from engine.grid import Grid
 from simulator.panel import Panel
 from simulator.pipe import PipeLayer
 from simulator.inspectable import Inspectable
+from simulator import parse
 
 
 class SimulationScene(Scene):
@@ -46,6 +47,13 @@ class SimulationScene(Scene):
         self.audio.add_sound("delete", "sounds/508597__drooler__crumple-06.ogg")
 
         self.conn_particles = particle.ParticleManager()
+
+        # TODO: remove debug
+        self.pump_count = 0
+        self.gate_count = 0
+        self.thre_count = 0
+        self.fitt_count = 0
+        self.draw_nodes = False
 
     def handle_events(self, events):
         mouse = pygame.mouse.get_pos()
@@ -95,11 +103,9 @@ class SimulationScene(Scene):
                     pygame.quit()
                     sys.exit()
                 elif event.key == pygame.K_p:
-                    for pipe in self.pipes:
-                        print(f"pos: {pipe.pos}")
-                        print(f"rect: {pipe.rect}")
-                        print(f"begin: {pipe.begin}")
-                        print(f"end: {pipe.end}")
+                    parse.assign_nodes(self.components)
+                elif event.key == pygame.K_n:
+                    self.draw_nodes = not self.draw_nodes
                 elif event.key == pygame.K_BACKQUOTE:
                     if debug.is_active():
                         debug.disable()
@@ -144,9 +150,22 @@ class SimulationScene(Scene):
 
         self.shadows.draw(surface)
         self.components.draw(surface)
+
         if self.panel.mode == "inspect" and self.inspect_focus is not None:
             self.draw_focus_border(surface)
         self.pipes.draw(surface)
+
+        if self.draw_nodes:
+            for comp in self.components:
+                if comp.__class__.__name__ == "Fitting" and comp.node is not None:
+                    s = pygame.Surface(comp.rect.size, pygame.SRCALPHA)
+                    s.fill((*colors.color_list[comp.node % len(colors.color_list)], 120))
+                    surface.blit(s, comp.rect)
+            for comp in self.pipes:
+                if comp.node is not None:
+                    s = pygame.Surface(comp.rect.size, pygame.SRCALPHA)
+                    s.fill((*colors.color_list[comp.node % len(colors.color_list)], 120))
+                    surface.blit(s, comp.rect)
 
         self.conn_particles.render(surface, self.camera)
 
@@ -160,6 +179,19 @@ class SimulationScene(Scene):
     def add_component(self, comp):
         pygame.sprite.Sprite.add(comp, self.floating_components)
         pygame.sprite.Sprite.add(things.Shadow(comp), self.shadows)
+
+        if comp.__class__.__name__ == "Pump":
+            self.pump_count += 1
+            comp.name = f"Pump {self.pump_count}"
+        elif comp.__class__.__name__ == "GateValve":
+            self.gate_count += 1
+            comp.name = f"Gate {self.gate_count}"
+        elif comp.__class__.__name__ == "ThreewayValve":
+            self.thre_count += 1
+            comp.name = f"Thre {self.thre_count}"
+        elif comp.__class__.__name__ == "Fitting":
+            self.fitt_count += 1
+            comp.name = f"Fitt {self.fitt_count}"
 
     def draw_focus_border(self, surface: pygame.Surface):
         border_surf = pygame.Surface((20, 20), pygame.SRCALPHA)

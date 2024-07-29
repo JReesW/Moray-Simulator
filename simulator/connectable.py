@@ -6,6 +6,7 @@ from engine import colors, director
 import simulator
 
 from math import dist
+from typing import Optional
 
 
 class Connection:
@@ -22,6 +23,14 @@ class Connection:
         self.connectable = None  # The Connectable this connection is a part of
         self.connection = None  # The connection of another Connectable that this connectable is connected to
 
+    def other_comp(self) -> Optional["Connectable"]:
+        """
+        If this connection is connected to something, return the Connectable on the other side, otherwise return None
+        """
+        if self.connection is None:
+            return None
+        return self.connection.connectable
+
     def opposes(self, other: "Connection"):
         """
         Return whether this connection is opposing a given connection in direction only
@@ -36,7 +45,8 @@ class Connection:
         other.connection = self
 
     def __hash__(self):
-        return hash(f"{self.direction}{self.offset}")
+        return hash(f"{id(self.connectable)}-{id(self)}")
+        # return hash(f"{self.direction}{self.offset}")
 
     def __repr__(self):
         return f"{self.direction}{self.offset}"

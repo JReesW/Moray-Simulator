@@ -19,6 +19,8 @@ class Fitting(Component):
         pygame.draw.circle(self.bg_image, colors.black, (self.w / 2, self.h / 2), 2)
         self.image = self.bg_image.copy()
 
+        self.node = None
+
     def update(self, camera, *args, **kwargs):
         Draggable.update(self, camera, *args, **kwargs)
 
@@ -31,6 +33,7 @@ class Fitting(Component):
                 self.image.blit(red, (0, 0))
 
         half_t = director.scene.grid.tile_size // 2
+        pygame.draw.circle(self.image, colors.black, (half_t + 1, half_t + 1), 2)
         for connection in self.connections:
             if connection.connection is not None:
                 if connection.direction == "N":
