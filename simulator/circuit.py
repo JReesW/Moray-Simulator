@@ -1,6 +1,9 @@
 from collections import Counter
 
 
+Blueprint = {str: tuple}
+
+
 class Current:
     def __init__(self, amps: float, source: "Node", target: "Node"):
         self.amps = amps
@@ -38,7 +41,7 @@ class Node(CircuitComponent):
         self.voltage = None
 
     def __repr__(self):
-        return f"Node<{self.name}{"" if self.voltage is None else f", {self.voltage}V"}>"
+        return f"Node<{self.name}{'' if self.voltage is None else f', {self.voltage}V'}>"
 
 
 class Resistor(CircuitComponent):
@@ -52,12 +55,14 @@ class Resistor(CircuitComponent):
         self.current = None
         self.voltage_drop = None
 
+        self.replacements = {}
+
     def __repr__(self):
-        return f"Resistor<{self.name}, {self.resistance}Ω, ({", ".join(n.name for n in self.nodes)})>"
+        return f"Resistor<{self.name}, {self.resistance}Ω, ({', '.join(n.name for n in self.nodes)})>"
 
 
 class VoltageSource(CircuitComponent):
-    def __init__(self, name: str, voltage: float, pos_node: Node, neg_node: Node):
+    def __init__(self, name: str, voltage: float, neg_node: Node, pos_node: Node):
         CircuitComponent.__init__(self, name)
 
         self.voltage = voltage
@@ -79,6 +84,9 @@ class Transformation:
 
     def __repr__(self):
         return self.__class__.__name__
+
+
+# TODO: Make a short-circuit transformation, rule 0
 
 
 class Series(Transformation):
@@ -155,23 +163,31 @@ class WyeDelta(Transformation):
 
 
 """
-The Circuit itself
+Circuit stuff
 """
 
 
-class Circuit:
-    def __init__(self, nodes: [Node], resistors: [Resistor], voltage_source: VoltageSource):
-        self.nodes = {node.name: node for node in nodes}
-        self.resistors = {resistor.name: resistor for resistor in resistors}
-        self.voltage_source = voltage_source  # {voltage_source.name: voltage_source for voltage_source in voltage_sources}
+class SingleVoltCircuit:
+    """
+    A circuit that includes only a single voltage source
+    """
+
+    def __init__(self, nodes: [str], resistors: {str: (float, str, str)}, voltage_source: (str, float, str, str)):
+        self.nodes = {name: Node(name) for name in nodes}
+
+        self.resistors = {
+            name: Resistor(name, ohm, (self.nodes[node1], self.nodes[node2]))
+            for name, (ohm, node1, node2) in resistors.items()
+        }
+
+        name, volt, _from, _to = voltage_source
+        self.voltage_source = VoltageSource(name, volt, self.nodes[_from], self.nodes[_to])
 
     def simplify(self) -> (Resistor, [Transformation]):
         """
         Simplify this circuit down to a single resistor,
         returning the resistor and list of transformations it took to simplify
         """
-        # TODO: add voltage source parameter to specify around which source the circuit should be simplified
-        # TODO: make sure to remove the voltage sources not in focus
 
         active_resistors = self.resistors.copy()
         transformations = []
@@ -180,9 +196,11 @@ class Circuit:
             count = Counter(list(sum([r.nodes for r in active_resistors.values()], ())))
             combi_count = Counter([r.nodes for r in active_resistors.values()])
 
-            # TODO: replace with multi-V method
             count[self.voltage_source.pos_node] += 1j
             count[self.voltage_source.neg_node] += 1j
+
+            # Rule 0. Short-Circuit
+            # TODO: short circuit
 
             # Rule 1. Series
             if series_nodes := [n for n in count if count[n] == 2]:
@@ -216,7 +234,7 @@ class Circuit:
                     active_resistors[r.name] = r
 
             else:
-                # Uncertain whether the three rules are enough, but at the moment it seems to be
+                # Uncertain whether these rules are enough, but at the moment it seems to be
                 raise Exception("No rule applicable on the current circuit")
 
         return list(active_resistors.values())[0], transformations
@@ -245,9 +263,9 @@ class Circuit:
 
                     # Both have the same amps in their current. Weaker has the same target node as c,
                     # while stronger targets the node that disappeared during the transformation
-                    weaker.current = c.current
                     source_target = sorted(stronger.nodes, key=lambda n: 1 if n.voltage is None else 0)
                     stronger.current = Current(c.current.amps, *source_target)
+                    weaker.current = Current(c.current.amps, stronger.current.target, c.current.target)
 
                     # Calculate the voltage drops
                     stronger.voltage_drop = stronger.current.amps * stronger.resistance
@@ -286,56 +304,167 @@ class Circuit:
                             original.current.target.voltage = original.current.source.voltage - original.voltage_drop
 
 
+class Circuit:
+    """
+    A circuit of resistors and voltage sources connected by nodes
+    """
+
+    def __init__(self, nodes: [str], resistors: {str: (float, str, str)}, voltage_sources: {str: (float, str, str)}):
+        self.nodes_blueprint = nodes
+        self.resistors_blueprint = resistors
+        self.voltage_sources_blueprint = voltage_sources
+
+        self.nodes = {name: Node(name) for name in self.nodes_blueprint}
+        self.resistors = {
+            name: Resistor(name, ohm, (self.nodes[node1], self.nodes[node2]))
+            for name, (ohm, node1, node2) in resistors.items()
+        }
+        self.voltage_source = {
+            name: VoltageSource(name, volt, self.nodes[_from], self.nodes[_to])
+            for name, (volt, _from, _to) in voltage_sources.items()
+        }
+
+    def solve(self):
+        """
+        Split the circuit up into single voltage-source circuits, solve each individually, and merge them
+        """
+        circuits = []
+
+        # For every voltage source
+        for vs in self.voltage_sources_blueprint:
+            # Get the almost-zero resistors that replace the other
+            vs_resistors = self.create_vs_resistors(vs)
+
+            # Create and solve the single voltage-source circuit
+            voltage_source = (vs, *self.voltage_sources_blueprint[vs])
+            sv_circuit = SingleVoltCircuit(self.nodes_blueprint, self.resistors_blueprint | vs_resistors, voltage_source)
+            sv_circuit.solve()
+
+            # Set the voltages of the nodes that were replaced at the start of this loop
+            # for removed, replaced in node_replacements:
+            #     sv_circuit.nodes[removed].voltage = sv_circuit.nodes[replaced].voltage
+
+            # Store the resulting solved circuit and the replacements that took place (needed for current merging)
+            circuits.append(sv_circuit)
+
+        # Merge all single voltage-source circuits into one
+        self.merge_circuits(circuits)
+
+    def create_vs_resistors(self, voltage_source: str) -> [(str, str)]:
+        """
+        Create links between the nodes of all voltage sources except the given voltage source
+        """
+        vs_resistors = {}
+        for vs, (_, _from, _to) in self.voltage_sources_blueprint.items():
+            if vs != voltage_source:
+                vs_resistors[vs] = (0.00000000001, _from, _to)
+        return vs_resistors
+
+    def merge_circuits(self, circuits: [SingleVoltCircuit]):
+        """
+        Merge all Single Volt Circuits into one circuit
+        """
+        # Merge all nodes, simply by adding their voltages together across the circuits
+        for node in self.nodes:
+            self.nodes[node].voltage = sum([c.nodes[node].voltage for c in circuits])
+
+        for resistor in self.resistors:
+            # Take the first circuit as the default
+            current: Current = circuits[0].resistors[resistor].current
+
+            # For every other circuit
+            for circuit in circuits[1:]:
+                other: Current = circuit.resistors[resistor].current
+
+                if current.source == other.source:
+                    current.amps += other.amps
+                else:
+                    if current.amps > other.amps:
+                        current.amps -= other.amps
+                    else:
+                        current.source, current.target = other.source, other.target
+                        current.amps = other.amps - current.amps
+
+            self.resistors[resistor].current = current
+            self.resistors[resistor].voltage_drop = self.resistors[resistor].current.amps * self.resistors[resistor].resistance
+
+
 if __name__ == '__main__':
-    # Series and parallel example, see whiteboard photo
-    # N = {
-    #     "alpha": Node("alpha"),
-    #     "beta": Node("beta"),
-    #     "gamma": Node("gamma"),
-    #     "delta": Node("delta")
-    # }
-    # R = [
-    #     Resistor("A", 5, (N["alpha"], N["beta"])),
-    #     Resistor("B", 8, (N["beta"], N["delta"])),
-    #     Resistor("C", 3, (N["beta"], N["gamma"])),
-    #     Resistor("D", 7, (N["gamma"], N["delta"]))
-    # ]
-    # V = [VoltageSource("V0", 9, N["alpha"], N["delta"])]
+    # List of node names
+    N = ["alpha", "beta", "gamma", "delta", "epsilon"]
 
-    # Wye-Delta, parallel, and series, see WYE-DELTA QUESTION google doc
-    N = {
-        "alpha": Node("alpha"),
-        "beta": Node("beta"),
-        "gamma": Node("gamma"),
-        "delta": Node("delta")
+    # Resistor name as key, (resistance, node1, node2) as value
+    R = {
+        "A": (8, "alpha", "beta"),
+        "B": (6, "beta", "delta"),
+        "C": (3, "beta", "gamma"),
+        "D": (4, "delta", "epsilon")
     }
-    R = [
-        Resistor("A", 6, (N["alpha"], N["beta"])),
-        Resistor("B", 8, (N["alpha"], N["gamma"])),
-        Resistor("C", 4, (N["beta"], N["gamma"])),
-        Resistor("D", 8, (N["beta"], N["delta"])),
-        Resistor("E", 10, (N["gamma"], N["delta"]))
-    ]
-    V = [VoltageSource("V0", 8, N["alpha"], N["delta"])]
 
-    # Simple series test
-    # N = {
-    #     "alpha": Node("alpha"),
-    #     "beta": Node("beta"),
-    #     "gamma": Node("gamma")
-    # }
-    # R = [
-    #     Resistor("A", 6, (N["alpha"], N["beta"])),
-    #     Resistor("B", 8, (N["beta"], N["gamma"]))
-    # ]
-    # V = [VoltageSource("V0", 8, N["alpha"], N["gamma"])]
+    # Voltage source name as key, (voltage, from, to) as value
+    V = {
+        "V0": (6, "epsilon", "alpha"),
+        "V1": (3, "gamma", "delta")
+    }
 
-    circuit = Circuit(N.values(), R, V[0])
+    example_circuit = Circuit(N, R, V)
 
     # test
-    print(circuit.simplify())
-    circuit.solve()
-    for _r in circuit.resistors.values():
-        print(_r.name, _r.resistance, _r.current, _r.voltage_drop)
-    for _n in circuit.nodes.values():
+    example_circuit.solve()
+    for _r in example_circuit.resistors.values():
+        print(_r.name, _r.resistance, _r.current, _r.voltage_drop, f"({' <-> '.join([n.name for n in _r.nodes])})")
+    for _n in example_circuit.nodes.values():
         print(_n.name, _n.voltage)
+
+
+"""
+Misc tests
+
+# Series and parallel example, see whiteboard photo
+N = ["alpha", "beta", "gamma", "delta"]
+R = {
+    "A": (5, "alpha", "beta"),
+    "B": (8, "beta", "delta"),
+    "C": (3, "beta", "gamma").
+    "D": (7, "gamma", "delta")
+}
+
+R = [
+    Resistor("A", 5, (N["alpha"], N["beta"])),
+    Resistor("B", 8, (N["beta"], N["delta"])),
+    Resistor("C", 3, (N["beta"], N["gamma"])),
+    Resistor("D", 7, (N["gamma"], N["delta"]))
+]
+V = [VoltageSource("V0", 9, N["alpha"], N["delta"])]
+
+
+# Wye-Delta, parallel, and series, see WYE-DELTA QUESTION google doc
+N = {
+    "alpha": Node("alpha"),
+    "beta": Node("beta"),
+    "gamma": Node("gamma"),
+    "delta": Node("delta")
+}
+R = [
+    Resistor("A", 6, (N["alpha"], N["beta"])),
+    Resistor("B", 8, (N["alpha"], N["gamma"])),
+    Resistor("C", 4, (N["beta"], N["gamma"])),
+    Resistor("D", 8, (N["beta"], N["delta"])),
+    Resistor("E", 10, (N["gamma"], N["delta"]))
+]
+V = [VoltageSource("V0", 8, N["alpha"], N["delta"])]
+
+
+# Simple series test
+N = {
+    "alpha": Node("alpha"),
+    "beta": Node("beta"),
+    "gamma": Node("gamma")
+}
+R = [
+    Resistor("A", 6, (N["alpha"], N["beta"])),
+    Resistor("B", 8, (N["beta"], N["gamma"]))
+]
+V = [VoltageSource("V0", 8, N["alpha"], N["gamma"])]
+
+"""

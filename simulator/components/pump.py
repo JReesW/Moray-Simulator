@@ -10,3 +10,18 @@ class Pump(Component, Inspectable):
         ], pos=pos)
         Inspectable.__init__(self, "Pump", "Voltage", "V", (300, 90))
         self.load_image("images/pump.png")
+
+        self.direction = "E"
+        self.opposite_direction = "W"
+
+    def rotate(self, clockwise=True):
+        Component.rotate(self, clockwise)
+
+        cw = 1 if clockwise else -1
+        self.direction = "NESW"[("NESW".index(self.direction) + cw) % 4]
+        self.opposite_direction = "NESW"[("NESW".index(self.opposite_direction) + cw) % 4]
+
+    def get_from_to(self):
+        _from = next(c for c in self.connections if c.direction == self.opposite_direction)
+        _to = next(c for c in self.connections if c.direction == self.direction)
+        return _from, _to

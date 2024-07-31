@@ -100,7 +100,6 @@ class Connectable(Draggable):
         """
         Called when being connected to something that got dropped
         """
-        # TODO: probably delete this function
         pass
 
     def disconnect(self):

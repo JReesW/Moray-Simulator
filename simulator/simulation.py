@@ -103,7 +103,7 @@ class SimulationScene(Scene):
                     pygame.quit()
                     sys.exit()
                 elif event.key == pygame.K_p:
-                    parse.assign_nodes(self.components)
+                    self.parse_circuit()
                 elif event.key == pygame.K_n:
                     self.draw_nodes = not self.draw_nodes
                 elif event.key == pygame.K_BACKQUOTE:
@@ -159,12 +159,12 @@ class SimulationScene(Scene):
             for comp in self.components:
                 if comp.__class__.__name__ == "Fitting" and comp.node is not None:
                     s = pygame.Surface(comp.rect.size, pygame.SRCALPHA)
-                    s.fill((*colors.color_list[comp.node % len(colors.color_list)], 120))
+                    s.fill((*colors.color_list[int(comp.node) % len(colors.color_list)], 120))
                     surface.blit(s, comp.rect)
             for comp in self.pipes:
                 if comp.node is not None:
                     s = pygame.Surface(comp.rect.size, pygame.SRCALPHA)
-                    s.fill((*colors.color_list[comp.node % len(colors.color_list)], 120))
+                    s.fill((*colors.color_list[int(comp.node) % len(colors.color_list)], 120))
                     surface.blit(s, comp.rect)
 
         self.conn_particles.render(surface, self.camera)
@@ -202,3 +202,7 @@ class SimulationScene(Scene):
         pygame.draw.rect(border_surf, (0, 0, 0, 0), (0, 6, 20, 8))
         scaled = pygame.transform.smoothscale(border_surf, self.inspect_focus.rect.size)
         surface.blit(scaled, self.inspect_focus.rect)
+
+    def parse_circuit(self):
+        parse.assign_nodes(self.components)
+        parse.parse(self.components)
