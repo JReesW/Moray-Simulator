@@ -340,10 +340,6 @@ class Circuit:
             sv_circuit = SingleVoltCircuit(self.nodes_blueprint, self.resistors_blueprint | vs_resistors, voltage_source)
             sv_circuit.solve()
 
-            # Set the voltages of the nodes that were replaced at the start of this loop
-            # for removed, replaced in node_replacements:
-            #     sv_circuit.nodes[removed].voltage = sv_circuit.nodes[replaced].voltage
-
             # Store the resulting solved circuit and the replacements that took place (needed for current merging)
             circuits.append(sv_circuit)
 
@@ -352,7 +348,7 @@ class Circuit:
 
     def create_vs_resistors(self, voltage_source: str) -> [(str, str)]:
         """
-        Create links between the nodes of all voltage sources except the given voltage source
+        Create resistors out of all voltage sources except the given voltage source
         """
         vs_resistors = {}
         for vs, (_, _from, _to) in self.voltage_sources_blueprint.items():

@@ -11,7 +11,11 @@ from simulator.circuit import Circuit
 from itertools import chain
 
 
-def assign_nodes(components):
+def assign_nodes(components) -> None:
+    """
+    Walks through all components and pipes to separate them into nodes.
+    Assigns to pipes/fittings to which node they belong, and to components to which nodes they connect
+    """
     pumps_valves = [comp for comp in components if type(comp) in [Pump, GateValve, ThreewayValve]]
 
     # ID's of visited Connection ID's as keys, node they belong to as value
@@ -58,21 +62,44 @@ def assign_nodes(components):
             o.connectable.node = n
 
 
-def parse(components):
+def separate_disjointed_circuits():
+    pass
+
+
+def parse(components) -> None:
+    """
+    Parse all components into a format suitable for the circuit solver, and solve the circuit
+    """
+    # Separate the pumps and the valves
     _pumps = [comp for comp in components if isinstance(comp, Pump)]
     _valves = [comp for comp in components if isinstance(comp, GateValve)]
+    _threes = [comp for comp in components if isinstance(comp, ThreewayValve)]
 
+    # Gather all the nodes
     pump_nodes = set(chain.from_iterable([pump.nodes.values() for pump in _pumps]))
     valve_nodes = set(chain.from_iterable([valve.nodes.values() for valve in _valves]))
-    nodes = pump_nodes | valve_nodes
+    three_nodes = set(chain.from_iterable([three.nodes.values() for three in _threes]))
+    nodes = pump_nodes | valve_nodes | three_nodes
 
+    # Parse the pumps
     pumps = {}
     for p in _pumps:
         _from, _to = p.get_from_to()
         pumps[p.name] = (p.text_value, p.nodes[_from], p.nodes[_to])
 
+    # Parse the valves
     valves = {v.name: (v.text_value, *v.nodes.values()) for v in _valves}
 
+    # Parse the threeway valves
+    for three in _threes:
+        _open, blue, red = three.open_blue_red_connections()
+        o_node, b_node, r_node = [three.nodes[s] for s in (_open, blue, red)]
+        b_res, r_res = three.text_value * three.blue_part, three.text_value * (1 - three.blue_part)
+        valves[three.name + ".b"] = (b_res, o_node, b_node)
+        valves[three.name + ".r"] = (r_res, o_node, r_node)
+
+    # Solve the circuit
+    # TODO: Use flood fill to separate disjointed circuits
     circuit = Circuit(nodes, valves, pumps)
     circuit.solve()
 

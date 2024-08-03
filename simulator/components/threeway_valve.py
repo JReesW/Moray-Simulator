@@ -22,15 +22,24 @@ class ThreewayValve(Component, Inspectable):
         l, t = self.i_rect.left + 25, self.i_rect.top + 125
         self.triangles = {
             "N": ((l + 50, t + 50), (l + 17, t + 4), (l + 83, t + 4)),
+            "E": ((l + 50, t + 50), (l + 96, t + 17), (l + 96, t + 83)),
             "S": ((l + 50, t + 50), (l + 17, t + 96), (l + 83, t + 96)),
-            "W": ((l + 50, t + 50), (l + 4, t + 17), (l + 4, t + 83)),
-            "E": ((l + 50, t + 50), (l + 96, t + 17), (l + 96, t + 83))
+            "W": ((l + 50, t + 50), (l + 4, t + 17), (l + 4, t + 83))
         }
         self.open_side = "N"
 
         self.slider_rect = Rect(l + 120, t + 40, 135, 20)
         self.blue_part = 0.5  # TODO: rename
         self.slider_dragging = False
+
+    def open_blue_red_connections(self) -> (Connection, Connection, Connection):
+        """
+        Return the open connection, the blue connection, and the red connection, in that order
+        """
+        sides = {conn.direction for conn in self.connections}
+        one, two = [conn for conn in self.connections if conn.direction in sides and conn.direction != self.open_side]
+        open_conn = [conn for conn in self.connections if conn.direction in sides and conn.direction == self.open_side]
+        return open_conn[0], *sorted([one, two], key=lambda c: "NESW".index(c.direction))
 
     def rotate(self, clockwise=True):
         Component.rotate(self, clockwise)
