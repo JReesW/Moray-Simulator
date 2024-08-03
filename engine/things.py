@@ -46,6 +46,8 @@ class Thing(Sprite):
         else:
             self.image = image
 
+        self.id = id(self)
+
     def handle_events(self, events, **kwargs):
         """
         Handle user input

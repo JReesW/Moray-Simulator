@@ -62,8 +62,38 @@ def assign_nodes(components) -> None:
             o.connectable.node = n
 
 
-def separate_disjointed_circuits():
-    pass
+def separate_disjointed_circuits(nodes: [str], valves: {str: (float, str, str)}, pumps: {str: (float, str, str)}):
+    """
+    Split up the list of nodes and components into disjointed lists of nodes and components
+    """
+    nodes_left = set(nodes)
+    circuits = []
+
+    while nodes_left:
+        nodes_to_check = [nodes_left.pop()]
+        new_valves = {}
+        new_pumps = {}
+
+        for node in nodes_to_check:
+            for _, a, b in (valves | pumps).values():
+                if a == node and b in nodes_left:
+                    nodes_to_check.append(b)
+                    nodes_left.remove(b)
+                elif b == node and a in nodes_left:
+                    nodes_to_check.append(a)
+                    nodes_left.remove(a)
+
+        for node in nodes_to_check:
+            for name, (v, a, b) in valves.items():
+                if a == node or b == node:
+                    new_valves[name] = (v, a, b)
+            for name, (v, a, b) in pumps.items():
+                if a == node or b == node:
+                    new_pumps[name] = (v, a, b)
+
+        circuits.append((nodes_to_check, new_valves, new_pumps))
+
+    return circuits
 
 
 def parse(components) -> None:
@@ -98,13 +128,27 @@ def parse(components) -> None:
         valves[three.name + ".b"] = (b_res, o_node, b_node)
         valves[three.name + ".r"] = (r_res, o_node, r_node)
 
-    # Solve the circuit
-    # TODO: Use flood fill to separate disjointed circuits
-    circuit = Circuit(nodes, valves, pumps)
-    circuit.solve()
+    # Split the nodes and components into disjointed circuits
+    split_circuits = separate_disjointed_circuits(nodes, valves, pumps)
+    circuits = []
+
+    # Solve each disjointed circuit
+    for n, v, p in split_circuits:
+        circuit = Circuit(n, v, p)
+        circuit.solve()
+        circuits.append(circuit)
 
     # Print it (unnecessary for later)
-    for _r in circuit.resistors.values():
-        print(_r.name, _r.resistance, _r.current, _r.voltage_drop, f"({' <-> '.join([n.name for n in _r.nodes])})")
-    for _n in circuit.nodes.values():
-        print(_n.name, _n.voltage)
+    for circuit in circuits:
+        for _r in circuit.resistors.values():
+            print(_r.name, _r.resistance, _r.current, _r.voltage_drop, f"({' <-> '.join([n.name for n in _r.nodes])})")
+        for _n in circuit.nodes.values():
+            print(_n.name, _n.voltage)
+        print("-" * 30)
+
+
+def assign_pipe_current(components):
+    """
+    Assign currents to individual pipes
+    """
+

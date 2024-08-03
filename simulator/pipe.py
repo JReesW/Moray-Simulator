@@ -73,6 +73,7 @@ class Pipe(Connectable):
         self.rect = pygame.Rect(0, 0, 0, 0)
 
         self.node = None
+        self.current = None
 
     def init_connections(self):
         """
