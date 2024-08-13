@@ -11,7 +11,7 @@ from simulator.components import GateValve, ThreewayValve, Pump, Fitting
 data = {
     "inspect": {
         "title": "Inspect",
-        "description": "Click on components to\ninspect their properties"
+        "description": "Click on components to inspect\nand alter their properties"
     },
     "cursor": {
         "title": "Move components",
@@ -30,7 +30,7 @@ data = {
         },
         {
             "title": "Three-way Valve",
-            "description": "A resistor connecting ...",
+            "description": "A resistor with three sides",
             "name": "threewayvalve",
             "object": ThreewayValve
         },
@@ -194,7 +194,7 @@ class Panel:
         self.components = {}
 
         self.mode_selector = ModeSelector(self, Rect(20, 40, w - 40, (2 * h // 7)))
-        self.mode = "inspect"
+        self.mode = "cursor"
         self.component_selector = ComponentSelector(self, Rect(20, 80 + (2 * h // 7), w - 40, (3 * h // 8)))
 
         self.images = {

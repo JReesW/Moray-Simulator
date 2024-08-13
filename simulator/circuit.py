@@ -86,7 +86,23 @@ class Transformation:
         return self.__class__.__name__
 
 
-# TODO: Make a short-circuit transformation, rule 0
+class ShortCircuit(Transformation):
+    # Represents the removal of a short-circuited resistor, a resistor that connects to the same node on both sides
+
+    def __init__(self, source: Resistor):
+        Transformation.__init__(self)
+
+        self.source = source
+
+
+class DeadEnd(Transformation):
+    # Represents the removal of a resistor that is attached to a node with nothing else connected to it
+
+    def __init__(self, source: Resistor, dead_node: Node):
+        Transformation.__init__(self)
+
+        self.source = source
+        self.dead_node = dead_node
 
 
 class Series(Transformation):
@@ -199,11 +215,24 @@ class SingleVoltCircuit:
             count[self.voltage_source.pos_node] += 1j
             count[self.voltage_source.neg_node] += 1j
 
-            # Rule 0. Short-Circuit
-            # TODO: short circuit
+            # Rule 0a. Short-Circuit
+            print(active_resistors)
+            if short_circuited := [r for r in active_resistors.values() if r.nodes[0] is r.nodes[1]]:
+                for resistor in short_circuited:
+                    short_circuit = ShortCircuit(resistor)
+                    transformations.append(short_circuit)
+                    del active_resistors[resistor.name]
+
+            # Rule 0b. Dead End
+            elif dead_nodes := [n for n in count if count[n] == 1]:
+                for dead_node in dead_nodes:
+                    resistor = [r for r in active_resistors.values() if dead_node in r.nodes][0]
+                    dead_end = DeadEnd(resistor, dead_node)
+                    transformations.append(dead_end)
+                    del active_resistors[resistor.name]
 
             # Rule 1. Series
-            if series_nodes := [n for n in count if count[n] == 2]:
+            elif series_nodes := [n for n in count if count[n] == 2]:
                 node = series_nodes[0]
                 resistors = [r for r in active_resistors.values() if node in r.nodes]
                 series = Series(resistors)
@@ -302,6 +331,15 @@ class SingleVoltCircuit:
                         original.voltage_drop = original.current.amps * original.resistance
                         if original.current.target.voltage is None:
                             original.current.target.voltage = original.current.source.voltage - original.voltage_drop
+
+                case ShortCircuit(source=resistor):
+                    resistor.current = Current(0, *resistor.nodes)
+                    resistor.voltage_drop = 0
+
+                case DeadEnd(source=resistor, dead_node=dead_node):
+                    resistor.current = Current(0, *resistor.nodes)
+                    resistor.voltage_drop = 0
+                    dead_node.voltage = 0
 
 
 class Circuit:

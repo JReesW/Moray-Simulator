@@ -93,6 +93,10 @@ def separate_disjointed_circuits(nodes: [str], valves: {str: (float, str, str)},
 
         circuits.append((nodes_to_check, new_valves, new_pumps))
 
+    # Remove circuits without pumps or without valves
+    circuits = [c for c in circuits if len(c[1]) > 0]
+    circuits = [c for c in circuits if len(c[2]) > 0]
+
     return circuits
 
 
