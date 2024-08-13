@@ -119,6 +119,8 @@ class Series(Transformation):
         """
         Return the end nodes of this transition's series of resistors
         """
+        if self.source[0].nodes[0] in self.source[1].nodes and self.source[0].nodes[1] in self.source[1].nodes:
+            return self.source[0].nodes
         count = Counter(list(sum([r.nodes for r in self.source], ())))
         return tuple([node for node in count if count[node] == 1])
 
