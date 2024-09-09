@@ -69,6 +69,8 @@ class VoltageSource(CircuitComponent):
         self.pos_node = pos_node
         self.neg_node = neg_node
 
+        self.current = None
+
     def __repr__(self):
         return f"Resistor<{self.name}, {self.voltage}V, {self.pos_node.name} → {self.neg_node.name}>"
 
@@ -218,7 +220,6 @@ class SingleVoltCircuit:
             count[self.voltage_source.neg_node] += 1j
 
             # Rule 0a. Short-Circuit
-            print(active_resistors)
             if short_circuited := [r for r in active_resistors.values() if r.nodes[0] is r.nodes[1]]:
                 for resistor in short_circuited:
                     short_circuit = ShortCircuit(resistor)
@@ -281,6 +282,7 @@ class SingleVoltCircuit:
         self.voltage_source.pos_node.voltage = self.voltage_source.voltage
         self.voltage_source.neg_node.voltage = 0
         current = self.voltage_source.voltage / eq_resistor.resistance
+        self.voltage_source.current = Current(current, self.voltage_source.neg_node, self.voltage_source.pos_node)
         eq_resistor.current = Current(current, *sorted(eq_resistor.nodes, key=lambda n: n.voltage, reverse=True))
         eq_resistor.voltage_drop = self.voltage_source.voltage
 
@@ -359,7 +361,7 @@ class Circuit:
             name: Resistor(name, ohm, (self.nodes[node1], self.nodes[node2]))
             for name, (ohm, node1, node2) in resistors.items()
         }
-        self.voltage_source = {
+        self.voltage_sources = {
             name: VoltageSource(name, volt, self.nodes[_from], self.nodes[_to])
             for name, (volt, _from, _to) in voltage_sources.items()
         }
@@ -423,6 +425,25 @@ class Circuit:
 
             self.resistors[resistor].current = current
             self.resistors[resistor].voltage_drop = self.resistors[resistor].current.amps * self.resistors[resistor].resistance
+
+        for voltage_source in self.voltage_sources:
+            original = [c.voltage_source for c in circuits if c.voltage_source.name == voltage_source][0]
+            replacements = [c.resistors[voltage_source] for c in circuits if voltage_source in c.resistors]
+
+            current = original.current
+            for replacement in replacements:
+                other: Current = replacement.current
+
+                if current.source == other.source:
+                    current.amps += other.amps
+                else:
+                    if current.amps > other.amps:
+                        current.amps -= other.amps
+                    else:
+                        current.source, current.target = other.source, other.target
+                        current.amps = other.amps - current.amps
+
+            self.voltage_sources[voltage_source].current = current
 
 
 if __name__ == '__main__':

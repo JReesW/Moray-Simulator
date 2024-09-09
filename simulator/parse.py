@@ -144,11 +144,18 @@ def parse(components) -> None:
 
     # Print it (unnecessary for later)
     for circuit in circuits:
+        print("")
         for _r in circuit.resistors.values():
-            print(_r.name, _r.resistance, _r.current, _r.voltage_drop, f"({' <-> '.join([n.name for n in _r.nodes])})")
+            print(f"{_r.name}, which has a resistance of {_r.resistance} Ohms and connects nodes {' and '.join([n.name for n in _r.nodes])} "
+                  f"with current {_r.current}")
+        print("")
         for _n in circuit.nodes.values():
-            print(_n.name, _n.voltage)
-        print("-" * 30)
+            color_names = ["red", "blue", "orange", "green", "yellow", "cyan", "purple", "pink", "sienna", "rosy brown", "orchid", "olive"]
+            print(f"Node {_n.name} (colored {color_names[int(_n.name) % len(color_names)]}) has a voltage of {_n.voltage} Volts")
+        print("")
+        for _v in circuit.voltage_sources.values():
+            print(f"Voltage source {_v.name} (with voltage {_v.voltage}) has a current of {_v.current}")
+        print("\n" + ("-" * 30))
 
 
 def assign_pipe_current(components):
