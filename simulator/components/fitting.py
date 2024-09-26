@@ -20,6 +20,7 @@ class Fitting(Component):
         self.image = self.bg_image.copy()
 
         self.node = None
+        self.currents = {c: None for c in self.connections}
 
     def update(self, camera, *args, **kwargs):
         Draggable.update(self, camera, *args, **kwargs)

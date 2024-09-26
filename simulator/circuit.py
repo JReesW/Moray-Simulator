@@ -72,7 +72,7 @@ class VoltageSource(CircuitComponent):
         self.current = None
 
     def __repr__(self):
-        return f"Resistor<{self.name}, {self.voltage}V, {self.pos_node.name} → {self.neg_node.name}>"
+        return f"VoltageSource<{self.name}, {self.voltage}V, {self.pos_node.name} → {self.neg_node.name}>"
 
 
 """

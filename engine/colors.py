@@ -151,4 +151,12 @@ yellow = 255, 255, 0
 yellow_green = 154, 205, 50
 
 
+def alter(color: Color, degree: float) -> Color:
+    """
+    Darken or lighten a given color by a given degree.
+    A degree above 1 lightens the color, and a degree below 1 darkens the color.
+    """
+    return tuple([round(c * degree) for c in color])
+
+
 color_list = [red, blue, orange, green, yellow, cyan, purple, pink, sienna, rosy_brown, orchid, olive]

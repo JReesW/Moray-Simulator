@@ -197,18 +197,13 @@ class Panel:
         self.mode = "cursor"
         self.component_selector = ComponentSelector(self, Rect(20, 80 + (2 * h // 7), w - 40, (3 * h // 8)))
 
+        self.simulate_button_rect = Rect(self.rect.left + 15, self.rect.bottom - 80, self.w - 30, 50)
+
         self.images = {
             name: pygame.image.load(f"images/{name}.png").convert_alpha() for name in ["close_panel", "open_panel"]
         }
 
         self.image = None
-
-    def generate_button_rects(self) -> {Rect}:
-        """
-        Prepares the rects of the settings buttons
-        """
-        w = self.rect.w - 40
-        return {name: Rect(20, 20 + (i * 20), w, 50) for i, name in enumerate(["inspect", "cursor", "pipe"])}
 
     def handle_events(self, events: [Event]) -> None:
         mouse = pygame.mouse.get_pos()
@@ -224,8 +219,16 @@ class Panel:
                         self.rect.left = -self.w
 
                 if self.out:
-                    self.mode_selector.click(mouse)
-                    self.component_selector.click(mouse)
+                    if not self.scene.simulating:
+                        self.mode_selector.click(mouse)
+                        self.component_selector.click(mouse)
+
+                    if self.simulate_button_rect.collidepoint(mouse):
+                        self.scene.simulating = not self.scene.simulating
+                        if self.scene.simulating:
+                            self.scene.parse_circuit()
+                        self.mode = "inspect"
+                        self.redraw()
 
     def update(self):
         pass
@@ -234,9 +237,12 @@ class Panel:
         surface = Surface(self.rect.size)
 
         # Render the panel background
-        pygame.draw.rect(surface, colors.gainsboro, self.rect)
+        bg_color = colors.dark_gray if self.scene.simulating else colors.gainsboro
+        pygame.draw.rect(surface, bg_color, self.rect)
         x = self.rect.right - 2.5
         pygame.draw.line(surface, colors.dim_gray, (x, 26), (x, self.rect.bottom), 5)
+        if self.scene.simulating:
+            pygame.draw.rect(surface, colors.gainsboro, self.mode_selector.button_rects["inspect"])
 
         # Render the settings buttons
         surf, rect = text.render("Edit modes", colors.black, "Arial", 24)
@@ -250,8 +256,19 @@ class Panel:
         surface.blit(surf, rect)
         self.component_selector.render(surface)
 
+        # Dividing lines
         between = maths.between(rect.top, self.mode_selector.rect.bottom, 0.4)
         pygame.draw.line(surface, colors.grey, (self.rect.left + 10, between), (self.rect.right - 15, between), 2)
+        bot = self.component_selector.rect.bottom
+        pygame.draw.line(surface, colors.grey, (self.rect.left + 10, bot + 15), (self.rect.right - 15, bot + 15), 2)
+
+        # Simulating button
+        pygame.draw.rect(surface, colors.light_gray, self.simulate_button_rect, 0, 5)
+        pygame.draw.rect(surface, colors.grey, self.simulate_button_rect, 2, 5)
+        button_text = "Stop" if self.scene.simulating else "Simulate"
+        surf, rect = text.render(button_text, colors.black, "Arial", 24, True)
+        rect.center = self.simulate_button_rect.center
+        surface.blit(surf, rect)
 
         self.image = surface
 

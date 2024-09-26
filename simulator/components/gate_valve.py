@@ -10,3 +10,5 @@ class GateValve(Component, Inspectable):
         ], pos=pos)
         Inspectable.__init__(self, "Gate Valve", "Resistance", "Ω", (300, 90))
         self.load_image("images/gatevalve.png")
+
+        self.circuit_valve = None

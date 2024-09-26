@@ -7,6 +7,7 @@ from engine import audio, colors, things, particle, debug
 from engine.things import Group
 from engine.scene import Scene, Camera
 from engine.grid import Grid
+from engine import text
 
 from simulator.panel import Panel
 from simulator.pipe import PipeLayer
@@ -47,6 +48,9 @@ class SimulationScene(Scene):
         self.audio.add_sound("delete", "sounds/508597__drooler__crumple-06.ogg")
 
         self.conn_particles = particle.ParticleManager()
+
+        self.simulating = False
+        self.frame = 0
 
         # TODO: remove debug
         self.pump_count = 0
@@ -125,6 +129,8 @@ class SimulationScene(Scene):
                         self.inspect_focus = None
 
     def update(self):
+        self.frame += 1
+
         # Update the panel  - TODO: is this necessary?
         self.panel.update()
 
@@ -136,7 +142,7 @@ class SimulationScene(Scene):
         # Update the sprite groups
         show_connectors = len(self.floating_components) > 0 or self.panel.mode == "pipe"
         self.floating_components.update(self.camera, show_connectors=show_connectors)
-        self.pipes.update(self.camera, show_connectors=show_connectors)
+        self.pipes.update(self.camera, show_connectors=show_connectors, simulating=self.simulating, frame=self.frame)
         self.components.update(self.camera, show_connectors=show_connectors)
         self.shadows.update(self.camera)
 
@@ -174,6 +180,59 @@ class SimulationScene(Scene):
         if self.panel.mode == "inspect" and self.inspect_focus is not None:
             self.inspect_focus.render(surface)
 
+        if self.simulating:
+            for component in [*self.components, *self.pipes]:
+                if component.__class__.__name__ in ["Pipe", "GateValve", "ThreewayValve", "Pump"]:
+                    if component.rect.collidepoint(mouse := pygame.mouse.get_pos()):
+                        surf = None
+
+                        match component.__class__.__name__:
+                            case "Pipe":
+                                s, r = text.render(f"Current: {component.current.current:.3f}A", colors.black, "Arial", 14)
+                                vs, vr = text.render(f"Voltage: {component.current.voltage:.3f}V", colors.black, "Arial", 14)
+                                surf = pygame.Surface((max(r.w, vr.w) + 15, r.h + vr.h + 15))
+                                rect = surf.get_rect()
+                                surf.fill(colors.gainsboro)
+                                pygame.draw.rect(surf, colors.dark_gray, rect, 3)
+                                r.centerx = vr.centerx = rect.centerx
+                                r.top = 7
+                                vr.top = r.bottom + 1
+                                surf.blit(s, r)
+                                surf.blit(vs, vr)
+                            case "Pump":
+                                vs, vr = text.render(f"Volts: {component.circuit_pump.voltage: .3f}V", colors.black, "Arial", 14)
+                                cs, cr = text.render(f"Current: {component.circuit_pump.current.amps: .3f}A", colors.black, "Arial", 14)
+                                surf = pygame.Surface((max(vr.w, cr.w) + 15, vr.h + cr.h + 15))
+                                rect = surf.get_rect()
+                                surf.fill(colors.gainsboro)
+                                pygame.draw.rect(surf, colors.dark_gray, rect, 3)
+                                vr.centerx = cr.centerx = rect.centerx
+                                vr.top = 7
+                                cr.top = vr.bottom + 1
+                                surf.blit(vs, vr)
+                                surf.blit(cs, cr)
+                            case "GateValve":
+                                rs, rr = text.render(f"Resistance: {component.circuit_valve.resistance: .3f}Ω", colors.black,
+                                                     "Arial", 14)
+                                vs, vr = text.render(f"Voltage drop: {component.circuit_valve.voltage_drop: .3f}V", colors.black,
+                                                     "Arial", 14)
+                                cs, cr = text.render(f"Current: {component.circuit_valve.current.amps: .3f}A",
+                                                     colors.black, "Arial", 14)
+                                surf = pygame.Surface((max(rr.w, cr.w, vr.w) + 15, rr.h + cr.h + vr.h + 15))
+                                rect = surf.get_rect()
+                                surf.fill(colors.gainsboro)
+                                pygame.draw.rect(surf, colors.dark_gray, rect, 3)
+                                rr.centerx = cr.centerx = vr.centerx = rect.centerx
+                                rr.top = 7
+                                vr.top = rr.bottom + 1
+                                cr.top = vr.bottom + 1
+                                surf.blit(rs, rr)
+                                surf.blit(vs, vr)
+                                surf.blit(cs, cr)
+
+                        if surf is not None:
+                            surface.blit(surf, mouse)
+
         self.floating_components.draw(surface)
 
     def add_component(self, comp):
@@ -204,5 +263,8 @@ class SimulationScene(Scene):
         surface.blit(scaled, self.inspect_focus.rect)
 
     def parse_circuit(self):
+        for pipe in self.pipes:
+            pipe.current = None
         parse.assign_nodes(self.components)
         parse.parse(self.components)
+        parse.assign_pipe_current(self.components, self.pipes)

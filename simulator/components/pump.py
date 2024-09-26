@@ -14,6 +14,8 @@ class Pump(Component, Inspectable):
         self.direction = "E"
         self.opposite_direction = "W"
 
+        self.circuit_pump = None
+
     def rotate(self, clockwise=True):
         Component.rotate(self, clockwise)
 

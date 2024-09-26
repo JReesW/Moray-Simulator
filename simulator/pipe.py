@@ -3,9 +3,12 @@ import pygame
 from engine import colors, debug
 from engine.scene import Camera
 from engine.things import Draggable, Shadow
+from engine.maths import between
 
 import simulator
 from simulator.connectable import Connectable, Connection
+
+import math
 
 
 class PipeLayer:
@@ -148,6 +151,36 @@ class Pipe(Connectable):
                     pygame.draw.circle(conn_image, colors.lime, coord, 7, 3)
             self.image.blit(conn_image, (0, 0))
 
+        if "simulating" in kwargs and kwargs["simulating"]:
+            if self.current is not None:
+                speed_factor = max(5 - math.ceil((self.current.current / self.current.max_current) * 4), 1)
+                frame_mod = 15 * 2 ** (speed_factor - 1)
+
+                h = 0 if self.horizontal else 1
+                length = abs(self.end[h] - self.begin[h]) + 1
+
+                frame = kwargs["frame"] % frame_mod
+                offsets = [t * (frame / frame_mod) + t * i for i in range(-1, length + 1)]
+
+                ball = pygame.Surface((t // 2, t // 2), pygame.SRCALPHA)
+                color = colors.alter(colors.dodger_blue, (self.current.current / self.current.max_current) / 2 + 0.5)
+                pygame.draw.circle(ball, color, ball.get_rect().center, t // 4)
+                pygame.draw.circle(ball, colors.black, ball.get_rect().center, t // 4, 1)
+
+                for offset in offsets:
+                    rect = ball.get_rect()
+                    if self.horizontal:
+                        if self.current.direction == "E":
+                            rect.center = (offset, self.rect.height // 2)
+                        else:
+                            rect.center = (self.rect.width - offset, self.rect.height // 2)
+                    else:
+                        if self.current.direction == "S":
+                            rect.center = (self.rect.width // 2, offset)
+                        else:
+                            rect.center = (self.rect.width // 2, self.rect.height - offset)
+                    self.image.blit(ball, rect)
+
     def update_pipelaying(self):
         if self.begin[0] < self.end[0] or self.begin[1] < self.end[1]:
             begin = self.grid.world_coord(self.begin)
@@ -174,3 +207,6 @@ class Pipe(Connectable):
         self.end = self.grid.tile_coord((right - d, bottom - d))
 
         self.shadow.reload(rect=self.rect)
+
+    def __repr__(self):
+        return f"Pipe {id(self)}"

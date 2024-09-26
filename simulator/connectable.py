@@ -31,6 +31,9 @@ class Connection:
             return None
         return self.connection.connectable
 
+    def opposite(self) -> str:
+        return "SWNE"["NESW".index(self.direction)]
+
     def opposes(self, other: "Connection"):
         """
         Return whether this connection is opposing a given connection in direction only
@@ -46,7 +49,6 @@ class Connection:
 
     def __hash__(self):
         return hash(f"{id(self.connectable)}-{id(self)}")
-        # return hash(f"{self.direction}{self.offset}")
 
     def __repr__(self):
         return f"{self.direction}{self.offset}"

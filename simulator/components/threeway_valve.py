@@ -32,6 +32,9 @@ class ThreewayValve(Component, Inspectable):
         self.blue_part = 0.5  # TODO: rename
         self.slider_dragging = False
 
+        self.circuit_red_valve = None
+        self.circuit_blue_valve = None
+
     def open_blue_red_connections(self) -> (Connection, Connection, Connection):
         """
         Return the open connection, the blue connection, and the red connection, in that order
