@@ -1,2 +1,2 @@
-# HydroSim
-Hydraulic Network Simulator
+# Moray - Hydraulic Circuit Diagram Simulator
+This readme will be properly updated soon...
