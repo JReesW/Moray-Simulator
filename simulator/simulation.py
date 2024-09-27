@@ -106,8 +106,6 @@ class SimulationScene(Scene):
                 if event.key == pygame.K_q and (pygame.key.get_mods() & pygame.KMOD_CTRL):
                     pygame.quit()
                     sys.exit()
-                elif event.key == pygame.K_p:
-                    self.parse_circuit()
                 elif event.key == pygame.K_n:
                     self.draw_nodes = not self.draw_nodes
                 elif event.key == pygame.K_BACKQUOTE:
@@ -214,20 +212,16 @@ class SimulationScene(Scene):
                             case "GateValve":
                                 rs, rr = text.render(f"Resistance: {component.circuit_valve.resistance: .3f}Ω", colors.black,
                                                      "Arial", 14)
-                                vs, vr = text.render(f"Voltage drop: {component.circuit_valve.voltage_drop: .3f}V", colors.black,
-                                                     "Arial", 14)
                                 cs, cr = text.render(f"Current: {component.circuit_valve.current.amps: .3f}A",
                                                      colors.black, "Arial", 14)
-                                surf = pygame.Surface((max(rr.w, cr.w, vr.w) + 15, rr.h + cr.h + vr.h + 15))
+                                surf = pygame.Surface((max(rr.w, cr.w) + 15, rr.h + cr.h + 15))
                                 rect = surf.get_rect()
                                 surf.fill(colors.gainsboro)
                                 pygame.draw.rect(surf, colors.dark_gray, rect, 3)
-                                rr.centerx = cr.centerx = vr.centerx = rect.centerx
+                                rr.centerx = cr.centerx = rect.centerx
                                 rr.top = 7
-                                vr.top = rr.bottom + 1
-                                cr.top = vr.bottom + 1
+                                cr.top = rr.bottom + 1
                                 surf.blit(rs, rr)
-                                surf.blit(vs, vr)
                                 surf.blit(cs, cr)
 
                         if surf is not None:
